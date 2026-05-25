@@ -24,15 +24,14 @@ class EmuLoaderClient:
                            back to the local bundled file. Defaults to True.
         """
         self.emulator_info: Optional[EmulatorInfo] = None
-        self.pull_from_web = pull_from_web
         self.connected = False
         self._poll_task: Optional[asyncio.Task] = None
         self._not_connected_logged = False
+        self.configs = load_emulator_configs(pull_from_web=pull_from_web)
         self.connect()
 
     def connect(self) -> bool:
         """Connect to an available emulator."""
-        self.configs = load_emulator_configs(pull_from_web=self.pull_from_web)
         self.emulator_info = connect_to_emulator(configs=self.configs)
         self.connected = self.emulator_info is not None
         return self.connected
