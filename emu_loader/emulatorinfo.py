@@ -316,26 +316,22 @@ def load_emulator_configs(pull_from_web: bool = True) -> Dict[str, EmulatorInfo]
         return {}
 
 
-# Configs loaded once at import time
-EMULATOR_CONFIGS = load_emulator_configs(pull_from_web=True)
-
-
-def attachWrapper(emu: str) -> EmulatorInfo:
+def attachWrapper(emu: str, pull_from_web: bool = True) -> EmulatorInfo:
     """Wrap function for attaching to an emulator."""
-    EMULATOR_CONFIGS[emu].attach_to_emulator()
-    return EMULATOR_CONFIGS[emu]
+    configs = load_emulator_configs(pull_from_web=pull_from_web)
+    configs[emu].attach_to_emulator()
+    return configs[emu]
 
 
-def connect_to_emulator() -> Optional[EmulatorInfo]:
+def connect_to_emulator(pull_from_web: bool = True) -> Optional[EmulatorInfo]:
     """Try to connect to any available emulator and return the connected instance."""
-    for emu in EMULATOR_CONFIGS:
+    for emulator_info in load_emulator_configs(pull_from_web=pull_from_web).values():
         try:
-            emulator_info = EMULATOR_CONFIGS[emu]
             if emulator_info.attach_to_emulator():
                 logger.info(f"Connected to {emulator_info.readable_emulator_name}")
                 print(f"Connected to {emulator_info.readable_emulator_name}")
                 return emulator_info
         except Exception as e:
-            logger.info(f"Failed to connect to {EMULATOR_CONFIGS[emu].readable_emulator_name}: {str(e)}")
+            logger.info(f"Failed to connect to {emulator_info.readable_emulator_name}: {str(e)}")
             continue
     return None

@@ -16,16 +16,23 @@ except ImportError:
 class EmuLoaderClient:
     """Drop-in replacement client for PJ64Client using direct memory access."""
 
-    def __init__(self):
-        """Initialize the EmuLoaderClient."""
+    def __init__(self, pull_from_web: bool = True):
+        """Initialize the EmuLoaderClient and connect to an available emulator.
+
+        Args:
+            pull_from_web: If True, fetch emulator configs from the web before falling
+                           back to the local bundled file. Defaults to True.
+        """
+        self.pull_from_web = pull_from_web
         self.emulator_info: Optional[EmulatorInfo] = None
         self.connected = False
         self._poll_task: Optional[asyncio.Task] = None
         self._not_connected_logged = False
+        self.connect()
 
     def connect(self) -> bool:
         """Connect to an available emulator."""
-        self.emulator_info = connect_to_emulator()
+        self.emulator_info = connect_to_emulator(pull_from_web=self.pull_from_web)
         self.connected = self.emulator_info is not None
         return self.connected
 
