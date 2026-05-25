@@ -1,7 +1,7 @@
 """EmuLoader - Cross-platform emulator memory access library."""
 
 from .client import EmuLoaderClient
-from .emulatorinfo import EmulatorInfo, attachWrapper, connect_to_emulator
+from .emulatorinfo import EmulatorInfo, attachWrapper, connect_to_emulator, load_emulator_configs
 from .process import ProcessMemory
 from .ptrace import check_and_fix_ptrace_scope
 
@@ -11,5 +11,6 @@ __all__ = [
     "ProcessMemory",
     "connect_to_emulator",
     "attachWrapper",
+    "load_emulator_configs",
     "check_and_fix_ptrace_scope",
 ]
