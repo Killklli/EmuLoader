@@ -316,29 +316,18 @@ def load_emulator_configs(pull_from_web: bool = True) -> Dict[str, EmulatorInfo]
         return {}
 
 
-# Default configs loaded at import time from local file (no network call on import)
-EMULATOR_CONFIGS = load_emulator_configs(pull_from_web=False)
+# Configs loaded once at import time
+EMULATOR_CONFIGS = load_emulator_configs(pull_from_web=True)
 
 
-def attachWrapper(emu: str, pull_from_web: bool = True) -> EmulatorInfo:
+def attachWrapper(emu: str) -> EmulatorInfo:
     """Wrap function for attaching to an emulator."""
-    global EMULATOR_CONFIGS
-    if emu not in EMULATOR_CONFIGS:
-        EMULATOR_CONFIGS = load_emulator_configs(pull_from_web=pull_from_web)
     EMULATOR_CONFIGS[emu].attach_to_emulator()
     return EMULATOR_CONFIGS[emu]
 
 
-def connect_to_emulator(pull_from_web: bool = True) -> Optional[EmulatorInfo]:
-    """Try to connect to any available emulator and return the connected instance.
-
-    Args:
-        pull_from_web: If True (default), fetch the emulator config list from the GitHub Pages
-                       URL before attempting to connect. If False, use the local emulators.json.
-    """
-    global EMULATOR_CONFIGS
-    EMULATOR_CONFIGS = load_emulator_configs(pull_from_web=pull_from_web)
-
+def connect_to_emulator() -> Optional[EmulatorInfo]:
+    """Try to connect to any available emulator and return the connected instance."""
     for emu in EMULATOR_CONFIGS:
         try:
             emulator_info = EMULATOR_CONFIGS[emu]
