@@ -21,11 +21,14 @@ class EmuLoaderClient:
         self.emulator_info: Optional[EmulatorInfo] = None
         self.connected = False
         self._poll_task: Optional[asyncio.Task] = None
+        self._not_connected_warned = False
 
     def connect(self) -> bool:
         """Connect to an available emulator."""
         self.emulator_info = connect_to_emulator()
         self.connected = self.emulator_info is not None
+        if self.connected:
+            self._not_connected_warned = False
         return self.connected
 
     def disconnect(self):
@@ -43,53 +46,53 @@ class EmuLoaderClient:
         """
         return self.connected and self.emulator_info is not None
 
+    def _guard_connected(self):
+        """Raise if not connected, but only log the error once until reconnected."""
+        if not self.is_connected():
+            if not self._not_connected_warned:
+                logger.warning("Not connected to emulator.")
+                self._not_connected_warned = True
+            raise Exception("Not connected to emulator")
+
     # Direct memory access methods
     def read_u8(self, address: int) -> int:
         """Read an 8-bit unsigned integer from memory."""
-        if not self.is_connected():
-            raise Exception("Not connected to emulator")
+        self._guard_connected()
         return self.emulator_info.read_u8(address)  # pyright: ignore[reportOptionalMemberAccess]
 
     def read_u16(self, address: int) -> int:
         """Read a 16-bit unsigned integer from memory."""
-        if not self.is_connected():
-            raise Exception("Not connected to emulator")
+        self._guard_connected()
         return self.emulator_info.read_u16(address)  # pyright: ignore[reportOptionalMemberAccess]
 
     def read_u32(self, address: int) -> int:
         """Read a 32-bit unsigned integer from memory."""
-        if not self.is_connected():
-            raise Exception("Not connected to emulator")
+        self._guard_connected()
         return self.emulator_info.read_u32(address)  # pyright: ignore[reportOptionalMemberAccess]
 
     def write_u8(self, address: int, value: int):
         """Write an 8-bit unsigned integer to memory."""
-        if not self.is_connected():
-            raise Exception("Not connected to emulator")
+        self._guard_connected()
         self.emulator_info.write_u8(address, value)  # pyright: ignore[reportOptionalMemberAccess]
 
     def write_u16(self, address: int, value: int):
         """Write a 16-bit unsigned integer to memory."""
-        if not self.is_connected():
-            raise Exception("Not connected to emulator")
+        self._guard_connected()
         self.emulator_info.write_u16(address, value)  # pyright: ignore[reportOptionalMemberAccess]
 
     def write_u32(self, address: int, value: int):
         """Write a 32-bit unsigned integer to memory."""
-        if not self.is_connected():
-            raise Exception("Not connected to emulator")
+        self._guard_connected()
         self.emulator_info.write_u32(address, value)  # pyright: ignore[reportOptionalMemberAccess]
 
     def read_bytestring(self, address: int, length: int) -> str:
         """Read a bytestring from memory."""
-        if not self.is_connected():
-            raise Exception("Not connected to emulator")
+        self._guard_connected()
         return self.emulator_info.read_bytestring(address, length)  # pyright: ignore[reportOptionalMemberAccess]
 
     def write_bytestring(self, address: int, data: str):
         """Write a bytestring to memory."""
-        if not self.is_connected():
-            raise Exception("Not connected to emulator")
+        self._guard_connected()
         self.emulator_info.write_bytestring(address, data)  # pyright: ignore[reportOptionalMemberAccess]
 
     async def wait_for_emulator(self, validate: Optional[Callable[["EmuLoaderClient"], bool]] = None):
