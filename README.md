@@ -2,6 +2,8 @@
 
 Cross-platform emulator memory access library for N64 emulators. Supports Windows and Linux, with built-in detection for common emulators including Project64, BizHawk, Rosalie's Mupen GUI, simple64, Parallel Launcher, RetroArch, Gopher64, and ares.
 
+> **Note on emulator config loading:** The emulator definitions bundled with this package come from [`emu_loader/emulators.json`](emu_loader/emulators.json) in this repository. However, when `pull_from_web=True` is passed by the implementor (which is the default), EmuLoader will first attempt to fetch the latest config directly from [https://killklli.github.io/EmuLoader/emulators.json](https://killklli.github.io/EmuLoader/emulators.json) — which always reflects the `emulators.json` on the `main` branch. This means emulator support can be updated or corrected without requiring end users to upgrade the package. If the remote fetch fails, EmuLoader falls back to the bundled local copy automatically. To opt out of remote fetching entirely, pass `pull_from_web=False` when connecting.
+
 ## Installation
 
 ```bash
@@ -31,6 +33,46 @@ pip install .
 | ares | `"Ares"` |
 
 Emulator configs are loaded from `emulators.json` (or fetched from the web at runtime) and are no longer tied to a hardcoded enum — new emulators can be added simply by updating the JSON.
+
+## Adding Emulators
+
+New emulators can be added by appending an entry to `emu_loader/emulators.json`. Each entry is a JSON object with the following fields:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | ✅ | Unique identifier used when referencing the emulator in code (e.g. `"MyEmu"`). |
+| `readable_emulator_name` | string | ✅ | Human-friendly display name (e.g. `"My Emulator 2.0"`). |
+| `process_name` | string | ✅ | The executable name (without `.exe`) that EmuLoader searches for in the process list. |
+| `find_dll` | bool | ✅ | If `true`, EmuLoader locates the emulator's memory via a loaded DLL rather than the main process. |
+| `dll_name` | string\|null | ✅ | Windows DLL filename to search for (e.g. `"mupen64plus.dll"`). Set to `null` when `find_dll` is `false` or Windows is unsupported. |
+| `linux_dll_name` | string\|null | ✅ | Linux shared-library filename (e.g. `"libmupen64plus.so"`). Set to `null` when Linux is unsupported. |
+| `additional_lookup` | bool | ✅ | If `true`, an additional pointer/offset lookup is performed after the initial base address is found. |
+| `lower_offset_range` | string | ✅ | Hex string lower bound of the memory scan range (e.g. `"0x5A000"`). Set to `"0x0"` when using `scan_memory_for_signature`. |
+| `upper_offset_range` | string | ✅ | Hex string upper bound of the memory scan range (e.g. `"0x5658DF"`). Set to `"0x0"` when using `scan_memory_for_signature`. |
+| `range_step` | string | ✅ | Hex step size used when iterating through the scan range (e.g. `"0x10"`). |
+| `extra_offset` | string | ✅ | Additional hex offset added to the located base address (e.g. `"0x80000000"`). Use `"0x0"` if no adjustment is needed. |
+| `scan_memory_for_signature` | bool | ❌ | If `true`, the scan range is ignored and EmuLoader instead searches process memory for a known N64 RAM signature. Useful for emulators with dynamic memory layouts. |
+| `signature_alignment` | string | ❌ | Hex alignment boundary used during signature scanning (e.g. `"0x1000"`). Only relevant when `scan_memory_for_signature` is `true`. |
+
+### Example entry
+
+```json
+{
+    "id": "MyEmulator",
+    "readable_emulator_name": "My Emulator 2.0",
+    "process_name": "myemulator",
+    "find_dll": true,
+    "dll_name": "myemulator_core.dll",
+    "linux_dll_name": "libmyemulator_core.so",
+    "additional_lookup": false,
+    "lower_offset_range": "0x100000",
+    "upper_offset_range": "0x500000",
+    "range_step": "0x10",
+    "extra_offset": "0x0"
+}
+```
+
+After adding the entry, the new `id` can be passed anywhere EmuLoader accepts an emulator key.
 
 ## Usage
 
