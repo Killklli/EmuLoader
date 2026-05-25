@@ -7,7 +7,7 @@ import glob
 import json
 import urllib.request
 from typing import Optional, Set, Tuple, List, Dict, Any
-from enum import IntEnum, auto
+
 from .ptrace import check_and_fix_ptrace_scope
 
 try:
@@ -359,25 +359,13 @@ class ProcessMemory:
             self.mem_fd = None
 
 
-class Emulators(IntEnum):
-    """Emulator enum."""
-
-    Project64 = auto()
-    BizHawk = auto()
-    Project64_v4 = auto()
-    RMG = auto()
-    Simple64 = auto()
-    ParallelLauncher = auto()
-    ParallelLauncher903 = auto()
-    RetroArch = auto()
-
 
 class EmulatorInfo:
     """Class to store emulator information."""
 
     def __init__(
         self,
-        id: Emulators,
+        id: str,
         readable_emulator_name: str,
         process_name: str,
         find_dll: bool,
@@ -388,6 +376,8 @@ class EmulatorInfo:
         range_step: int = 16,
         extra_offset: int = 0,
         linux_dll_name: Optional[str] = None,
+        scan_memory_for_signature: bool = False,
+        signature_alignment: int = 0,
     ):
         """Initialize with given parameters."""
         self.id = id
@@ -401,6 +391,8 @@ class EmulatorInfo:
         self.upper_offset_range = upper_offset_range
         self.range_step = range_step
         self.extra_offset = extra_offset
+        self.scan_memory_for_signature = scan_memory_for_signature
+        self.signature_alignment = signature_alignment
         self.connected_process: Optional[ProcessMemory] = None
         self.connected_offset: Optional[int] = None
         self.connection_error: Optional[str] = None
@@ -486,7 +478,7 @@ class EmulatorInfo:
                 if address_dll != 0:
                     break
 
-            if address_dll == 0 and self.id == Emulators.BizHawk:
+            if address_dll == 0 and self.id == "BizHawk":
                 address_dll = 2024407040  # fallback guess
             elif address_dll == 0:
                 searched_names = ", ".join(possible_names)
@@ -636,15 +628,11 @@ EMULATOR_CONFIGS_URL = "https://killklli.github.io/EmuLoader/emulators.json"
 EMULATOR_CONFIGS_LOCAL = os.path.join(os.path.dirname(__file__), "emulators.json")
 
 
-def _parse_emulator_configs(data: List[Dict[str, Any]]) -> Dict["Emulators", EmulatorInfo]:
+def _parse_emulator_configs(data: List[Dict[str, Any]]) -> Dict[str, EmulatorInfo]:
     """Parse a list of emulator config dicts into an EMULATOR_CONFIGS mapping."""
-    configs: Dict[Emulators, EmulatorInfo] = {}
+    configs: Dict[str, EmulatorInfo] = {}
     for entry in data:
-        try:
-            emu_id = Emulators[entry["id"]]
-        except KeyError:
-            logger.warning(f"Unknown emulator id '{entry['id']}' in config, skipping.")
-            continue
+        emu_id = entry["id"]
         configs[emu_id] = EmulatorInfo(
             id=emu_id,
             readable_emulator_name=entry["readable_emulator_name"],
@@ -657,11 +645,13 @@ def _parse_emulator_configs(data: List[Dict[str, Any]]) -> Dict["Emulators", Emu
             range_step=entry.get("range_step", 16),
             extra_offset=entry.get("extra_offset", 0),
             linux_dll_name=entry.get("linux_dll_name"),
+            scan_memory_for_signature=entry.get("scan_memory_for_signature", False),
+            signature_alignment=entry.get("signature_alignment", 0),
         )
     return configs
 
 
-def load_emulator_configs(pull_from_web: bool = True) -> Dict["Emulators", EmulatorInfo]:
+def load_emulator_configs(pull_from_web: bool = True) -> Dict[str, EmulatorInfo]:
     """Load emulator configs from GitHub Pages (if pull_from_web=True) or the local JSON file."""
     if pull_from_web:
         try:
@@ -686,7 +676,7 @@ def load_emulator_configs(pull_from_web: bool = True) -> Dict["Emulators", Emula
 EMULATOR_CONFIGS = load_emulator_configs(pull_from_web=False)
 
 
-def attachWrapper(emu: Emulators, pull_from_web: bool = True) -> EmulatorInfo:
+def attachWrapper(emu: str, pull_from_web: bool = True) -> EmulatorInfo:
     """Wrap function for attaching to an emulator."""
     global EMULATOR_CONFIGS
     if emu not in EMULATOR_CONFIGS:
@@ -705,9 +695,7 @@ def connect_to_emulator(pull_from_web: bool = True) -> Optional[EmulatorInfo]:
     global EMULATOR_CONFIGS
     EMULATOR_CONFIGS = load_emulator_configs(pull_from_web=pull_from_web)
 
-    for emu in Emulators:
-        if emu not in EMULATOR_CONFIGS:
-            continue
+    for emu in EMULATOR_CONFIGS:
         try:
             emulator_info = EMULATOR_CONFIGS[emu]
             if emulator_info.attach_to_emulator():

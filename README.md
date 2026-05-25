@@ -1,6 +1,6 @@
 # EmuLoader
 
-Cross-platform emulator memory access library for N64 emulators. Supports Windows and Linux, with built-in detection for common emulators including Project64, BizHawk, Rosalie's Mupen GUI, simple64, Parallel Launcher, and RetroArch.
+Cross-platform emulator memory access library for N64 emulators. Supports Windows and Linux, with built-in detection for common emulators including Project64, BizHawk, Rosalie's Mupen GUI, simple64, Parallel Launcher, RetroArch, Gopher64, and ares.
 
 ## Installation
 
@@ -18,14 +18,19 @@ pip install .
 
 | Emulator | Key |
 |---|---|
-| Project64 (legacy) | `Emulators.Project64` |
-| Project64 4.0+ | `Emulators.Project64_v4` |
-| BizHawk | `Emulators.BizHawk` |
-| Rosalie's Mupen GUI | `Emulators.RMG` |
-| simple64 | `Emulators.Simple64` |
-| Parallel Launcher | `Emulators.ParallelLauncher` |
-| Parallel Launcher 9.0.3+ | `Emulators.ParallelLauncher903` |
-| RetroArch (mupen64plus_next) | `Emulators.RetroArch` |
+| Project64 | `"Project64"` |
+| Project64 4.0+ | `"Project64_v4"` |
+| BizHawk | `"BizHawk"` |
+| Rosalie's Mupen GUI | `"RMG"` |
+| Rosalie's Mupen GUI (Flatpak) | `"RMG_Flatpak"` |
+| simple64 | `"Simple64"` |
+| Parallel Launcher | `"ParallelLauncher"` |
+| Parallel Launcher 9.0.3+ | `"ParallelLauncher903"` |
+| RetroArch (mupen64plus_next) | `"RetroArch"` |
+| Gopher64 | `"Gopher64"` |
+| ares | `"Ares"` |
+
+Emulator configs are loaded from `emulators.json` (or fetched from the web at runtime) and are no longer tied to a hardcoded enum — new emulators can be added simply by updating the JSON.
 
 ## Usage
 

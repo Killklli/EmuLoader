@@ -7,8 +7,8 @@
         "dll_name": null,
         "linux_dll_name": null,
         "additional_lookup": false,
-        "lower_offset_range": 4257161216,
-        "upper_offset_range": 4262143999,
+        "lower_offset_range": 4258267136,
+        "upper_offset_range": 4263510015,
         "range_step": 16,
         "extra_offset": 0
     },
@@ -21,7 +21,7 @@
         "linux_dll_name": "libmupen64plus.so",
         "additional_lookup": false,
         "lower_offset_range": 368640,
-        "upper_offset_range": 5658335,
+        "upper_offset_range": 5658847,
         "range_step": 16,
         "extra_offset": 0
     },
@@ -33,10 +33,23 @@
         "dll_name": "mupen64plus.dll",
         "linux_dll_name": "libmupen64plus.so",
         "additional_lookup": true,
-        "lower_offset_range": 43989464,
-        "upper_offset_range": 50204120,
+        "lower_offset_range": 43783640,
+        "upper_offset_range": 50075096,
         "range_step": 16,
         "extra_offset": 2147483648
+    },
+    {
+        "id": "RMG_Flatpak",
+        "readable_emulator_name": "Rosalie's Mupen GUI (Flatpak)",
+        "process_name": "rmg",
+        "find_dll": true,
+        "dll_name": null,
+        "linux_dll_name": "libmupen64plus.so",
+        "additional_lookup": true,
+        "lower_offset_range": 0,
+        "upper_offset_range": 393216,
+        "range_step": 8,
+        "extra_offset": 0
     },
     {
         "id": "Simple64",
@@ -47,7 +60,7 @@
         "linux_dll_name": "libmupen64plus.so",
         "additional_lookup": true,
         "lower_offset_range": 20447232,
-        "upper_offset_range": 43988440,
+        "upper_offset_range": 43816408,
         "range_step": 16,
         "extra_offset": 0
     },
@@ -98,9 +111,38 @@
         "dll_name": null,
         "linux_dll_name": null,
         "additional_lookup": false,
-        "lower_offset_range": 3754590208,
-        "upper_offset_range": 3759046655,
+        "lower_offset_range": 3754950656,
+        "upper_offset_range": 3760193535,
         "range_step": 16,
         "extra_offset": 0
+    },
+    {
+        "id": "Gopher64",
+        "readable_emulator_name": "Gopher64",
+        "process_name": "gopher64",
+        "find_dll": false,
+        "dll_name": null,
+        "linux_dll_name": null,
+        "additional_lookup": false,
+        "lower_offset_range": 0,
+        "upper_offset_range": 0,
+        "range_step": 16,
+        "extra_offset": 0,
+        "scan_memory_for_signature": true
+    },
+    {
+        "id": "Ares",
+        "readable_emulator_name": "ares",
+        "process_name": "ares",
+        "find_dll": false,
+        "dll_name": null,
+        "linux_dll_name": null,
+        "additional_lookup": false,
+        "lower_offset_range": 0,
+        "upper_offset_range": 0,
+        "range_step": 16,
+        "extra_offset": 0,
+        "scan_memory_for_signature": true,
+        "signature_alignment": 4096
     }
 ]
