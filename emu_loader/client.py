@@ -94,51 +94,43 @@ class EmuLoaderClient:
     async def wait_for_emulator(self, validate: Optional[Callable[["EmuLoaderClient"], bool]] = None):
         """Wait for emulator to connect and optionally validate a condition (e.g. ROM loaded).
 
+        Runs as a background task, polling every second without blocking the UI.
+
         Args:
             validate: An optional callable that receives this client instance and returns True
                       when the emulator state is considered valid (e.g. the correct ROM is loaded).
                       If None, only the emulator connection is required.
         """
-        stop_spam = False
-        clear_waiting_message = True
+        logged_waiting_connection = False
+        logged_waiting_valid = False
 
-        if not stop_spam:
-            logger.info("Waiting on connection to emulator...")
-            stop_spam = True
-
-        while True:
-            try:
-                emulator_connected = False
-
-                if not self.is_connected():
-                    emulator_connected = self.connect()
-                else:
-                    emulator_connected = True
-
-                valid = False
-                if emulator_connected:
-                    if validate is not None:
-                        valid = validate(self)
-                        logger.info("Emulator connected, validating...")
-                    else:
-                        valid = True
-
-                while not valid:
+        async def _poll():
+            nonlocal logged_waiting_connection, logged_waiting_valid
+            while True:
+                try:
                     if not self.is_connected():
-                        emulator_connected = self.connect()
-                    if clear_waiting_message:
-                        logger.info("Waiting on valid state...")
-                        clear_waiting_message = False
-                    await asyncio.sleep(1.0)
-                    if self.is_connected() and validate is not None:
-                        valid = validate(self)
-                    elif self.is_connected():
-                        valid = True
+                        if not logged_waiting_connection:
+                            logger.info("Waiting on connection to emulator...")
+                            logged_waiting_connection = True
+                        self.connect()
+                        await asyncio.sleep(1.0)
+                        continue
 
-                stop_spam = False
-                logger.info("Emulator connected and ready!")
-                return
-            except Exception as e:
-                await asyncio.sleep(1.0)
-                logger.error(f"Error connecting to emulator, retrying... {str(e)}")
-                self.disconnect()
+                    logged_waiting_connection = False
+
+                    if validate is not None and not validate(self):
+                        if not logged_waiting_valid:
+                            logger.info("Waiting on valid state...")
+                            logged_waiting_valid = True
+                        await asyncio.sleep(1.0)
+                        continue
+
+                    logged_waiting_valid = False
+                    logger.info("Emulator connected and ready!")
+                    return
+                except Exception as e:
+                    logger.error(f"Error connecting to emulator, retrying... {str(e)}")
+                    self.disconnect()
+                    await asyncio.sleep(1.0)
+
+        asyncio.ensure_future(_poll())
