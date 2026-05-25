@@ -104,6 +104,8 @@ class EmuLoaderClient:
         logged_waiting_connection = False
         logged_waiting_valid = False
 
+        loop = asyncio.get_event_loop()
+
         async def _poll():
             nonlocal logged_waiting_connection, logged_waiting_valid
             while True:
@@ -112,18 +114,20 @@ class EmuLoaderClient:
                         if not logged_waiting_connection:
                             logger.info("Waiting on connection to emulator...")
                             logged_waiting_connection = True
-                        self.connect()
+                        await loop.run_in_executor(None, self.connect)
                         await asyncio.sleep(1.0)
                         continue
 
                     logged_waiting_connection = False
 
-                    if validate is not None and not validate(self):
-                        if not logged_waiting_valid:
-                            logger.info("Waiting on valid state...")
-                            logged_waiting_valid = True
-                        await asyncio.sleep(1.0)
-                        continue
+                    if validate is not None:
+                        valid = await loop.run_in_executor(None, validate, self)
+                        if not valid:
+                            if not logged_waiting_valid:
+                                logger.info("Waiting on valid state...")
+                                logged_waiting_valid = True
+                            await asyncio.sleep(1.0)
+                            continue
 
                     logged_waiting_valid = False
                     logger.info("Emulator connected and ready!")
