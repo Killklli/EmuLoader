@@ -7,10 +7,10 @@
         "dll_name": null,
         "linux_dll_name": null,
         "additional_lookup": false,
-        "lower_offset_range": 4258267136,
-        "upper_offset_range": 4263510015,
-        "range_step": 16,
-        "extra_offset": 0
+        "lower_offset_range": "0xFDD00000",
+        "upper_offset_range": "0xFE1FFFFF",
+        "range_step": "0x10",
+        "extra_offset": "0x0"
     },
     {
         "id": "BizHawk",
@@ -20,10 +20,10 @@
         "dll_name": "mupen64plus.dll",
         "linux_dll_name": "libmupen64plus.so",
         "additional_lookup": false,
-        "lower_offset_range": 368640,
-        "upper_offset_range": 5658847,
-        "range_step": 16,
-        "extra_offset": 0
+        "lower_offset_range": "0x5A000",
+        "upper_offset_range": "0x5658DF",
+        "range_step": "0x10",
+        "extra_offset": "0x0"
     },
     {
         "id": "RMG",
@@ -33,10 +33,10 @@
         "dll_name": "mupen64plus.dll",
         "linux_dll_name": "libmupen64plus.so",
         "additional_lookup": true,
-        "lower_offset_range": 43783640,
-        "upper_offset_range": 50075096,
-        "range_step": 16,
-        "extra_offset": 2147483648
+        "lower_offset_range": "0x29C15D8",
+        "upper_offset_range": "0x2FC15D8",
+        "range_step": "0x10",
+        "extra_offset": "0x80000000"
     },
     {
         "id": "RMG_Flatpak",
@@ -46,10 +46,10 @@
         "dll_name": null,
         "linux_dll_name": "libmupen64plus.so",
         "additional_lookup": true,
-        "lower_offset_range": 0,
-        "upper_offset_range": 393216,
-        "range_step": 8,
-        "extra_offset": 0
+        "lower_offset_range": "0x0",
+        "upper_offset_range": "0x60000",
+        "range_step": "0x8",
+        "extra_offset": "0x0"
     },
     {
         "id": "Simple64",
@@ -59,10 +59,10 @@
         "dll_name": "libmupen64plus.dll",
         "linux_dll_name": "libmupen64plus.so",
         "additional_lookup": true,
-        "lower_offset_range": 20447232,
-        "upper_offset_range": 43816408,
-        "range_step": 16,
-        "extra_offset": 0
+        "lower_offset_range": "0x1380000",
+        "upper_offset_range": "0x29C95D8",
+        "range_step": "0x10",
+        "extra_offset": "0x0"
     },
     {
         "id": "ParallelLauncher",
@@ -72,10 +72,10 @@
         "dll_name": "parallel_n64_next_libretro.dll",
         "linux_dll_name": "parallel_n64_next_libretro.so",
         "additional_lookup": true,
-        "lower_offset_range": 8671232,
-        "upper_offset_range": 13983744,
-        "range_step": 16,
-        "extra_offset": 0
+        "lower_offset_range": "0x845000",
+        "upper_offset_range": "0xD56000",
+        "range_step": "0x10",
+        "extra_offset": "0x0"
     },
     {
         "id": "ParallelLauncher903",
@@ -85,10 +85,10 @@
         "dll_name": "parallel_n64_next_libretro.dll",
         "linux_dll_name": "parallel_n64_next_libretro.so",
         "additional_lookup": true,
-        "lower_offset_range": 20971520,
-        "upper_offset_range": 25165824,
-        "range_step": 16,
-        "extra_offset": 0
+        "lower_offset_range": "0x1400000",
+        "upper_offset_range": "0x1800000",
+        "range_step": "0x10",
+        "extra_offset": "0x0"
     },
     {
         "id": "RetroArch",
@@ -98,10 +98,10 @@
         "dll_name": "mupen64plus_next_libretro.dll",
         "linux_dll_name": "mupen64plus_next_libretro.so",
         "additional_lookup": true,
-        "lower_offset_range": 0,
-        "upper_offset_range": 16777215,
-        "range_step": 4,
-        "extra_offset": 0
+        "lower_offset_range": "0x0",
+        "upper_offset_range": "0xFFFFFF",
+        "range_step": "0x4",
+        "extra_offset": "0x0"
     },
     {
         "id": "Project64",
@@ -111,10 +111,10 @@
         "dll_name": null,
         "linux_dll_name": null,
         "additional_lookup": false,
-        "lower_offset_range": 3754950656,
-        "upper_offset_range": 3760193535,
-        "range_step": 16,
-        "extra_offset": 0
+        "lower_offset_range": "0xDFD00000",
+        "upper_offset_range": "0xE01FFFFF",
+        "range_step": "0x10",
+        "extra_offset": "0x0"
     },
     {
         "id": "Gopher64",
@@ -124,10 +124,10 @@
         "dll_name": null,
         "linux_dll_name": null,
         "additional_lookup": false,
-        "lower_offset_range": 0,
-        "upper_offset_range": 0,
-        "range_step": 16,
-        "extra_offset": 0,
+        "lower_offset_range": "0x0",
+        "upper_offset_range": "0x0",
+        "range_step": "0x10",
+        "extra_offset": "0x0",
         "scan_memory_for_signature": true
     },
     {
@@ -138,11 +138,11 @@
         "dll_name": null,
         "linux_dll_name": null,
         "additional_lookup": false,
-        "lower_offset_range": 0,
-        "upper_offset_range": 0,
-        "range_step": 16,
-        "extra_offset": 0,
+        "lower_offset_range": "0x0",
+        "upper_offset_range": "0x0",
+        "range_step": "0x10",
+        "extra_offset": "0x0",
         "scan_memory_for_signature": true,
-        "signature_alignment": 4096
+        "signature_alignment": "0x1000"
     }
 ]

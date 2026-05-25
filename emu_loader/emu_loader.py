@@ -641,13 +641,13 @@ def _parse_emulator_configs(data: List[Dict[str, Any]]) -> Dict[str, EmulatorInf
             find_dll=entry["find_dll"],
             dll_name=entry.get("dll_name"),
             additional_lookup=entry["additional_lookup"],
-            lower_offset_range=entry["lower_offset_range"],
-            upper_offset_range=entry["upper_offset_range"],
-            range_step=entry.get("range_step", 16),
-            extra_offset=entry.get("extra_offset", 0),
+            lower_offset_range=int(entry["lower_offset_range"], 16),
+            upper_offset_range=int(entry["upper_offset_range"], 16),
+            range_step=int(entry.get("range_step", "0x10"), 16),
+            extra_offset=int(entry.get("extra_offset", "0x0"), 16),
             linux_dll_name=entry.get("linux_dll_name"),
             scan_memory_for_signature=entry.get("scan_memory_for_signature", False),
-            signature_alignment=entry.get("signature_alignment", 0),
+            signature_alignment=int(entry.get("signature_alignment", "0x0"), 16),
         )
     return configs
 
