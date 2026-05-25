@@ -48,6 +48,50 @@ if client.connect():
     client.disconnect()
 ```
 
+## Async Game Loop Integration
+
+`wait_for_emulator` is designed to be called **at the very start of your async game logic loop** before any memory reads or writes. It blocks until an emulator is detected and — optionally — until your ROM validation passes. Once it returns you can safely proceed with game logic knowing the connection is ready.
+
+```python
+import asyncio
+from emu_loader import EmuLoaderClient
+
+MY_ROM_MAGIC_ADDRESS = 0x80123456
+MY_ROM_MAGIC_VALUE   = 0xDEADBEEF
+
+def validate_rom(client: EmuLoaderClient) -> bool:
+    """Return True only when the correct ROM is loaded."""
+    try:
+        return client.read_u32(MY_ROM_MAGIC_ADDRESS) == MY_ROM_MAGIC_VALUE
+    except Exception:
+        return False
+
+async def game_loop():
+    client = EmuLoaderClient()
+
+    # Always call this first — it will retry until ready.
+    await client.wait_for_emulator(validate=validate_rom)
+
+    # From here the emulator is connected and the ROM is confirmed valid.
+    while True:
+        try:
+            value = client.read_u32(0x807ED000)
+            # ... your per-tick game logic ...
+            await asyncio.sleep(0.1)
+        except Exception as e:
+            print(f"Connection lost: {e}")
+            # Re-enter the wait loop if the connection drops.
+            await client.wait_for_emulator(validate=validate_rom)
+
+asyncio.run(game_loop())
+```
+
+If you don't need ROM validation — for example you just want to wait until *any* emulator is running — omit the `validate` argument:
+
+```python
+await client.wait_for_emulator()
+```
+
 ## ROM Validation
 
 **EmuLoader does not perform any ROM validation itself.** Before reading or writing game memory, you are responsible for verifying that the correct ROM is loaded in the emulator. Skipping this step may cause incorrect reads/writes against an unintended game.

@@ -1,12 +1,13 @@
 """Loader script for tracking the success of tests."""
 
+import asyncio
 import ctypes
 import platform
 import os
 import glob
 import json
 import urllib.request
-from typing import Optional, Set, Tuple, List, Dict, Any
+from typing import Optional, Set, Tuple, List, Dict, Any, Callable
 
 from .ptrace import check_and_fix_ptrace_scope
 
@@ -789,6 +790,58 @@ class EmuLoaderClient:
         if not self.is_connected():
             raise Exception("Not connected to emulator")
         self.emulator_info.write_bytestring(address, data)  # pyright: ignore[reportOptionalMemberAccess]
+
+    async def wait_for_emulator(self, validate: Optional[Callable[["EmuLoaderClient"], bool]] = None):
+        """Wait for emulator to connect and optionally validate a condition (e.g. ROM loaded).
+
+        Args:
+            validate: An optional callable that receives this client instance and returns True
+                      when the emulator state is considered valid (e.g. the correct ROM is loaded).
+                      If None, only the emulator connection is required.
+        """
+        stop_spam = False
+        clear_waiting_message = True
+
+        if not stop_spam:
+            logger.info("Waiting on connection to emulator...")
+            stop_spam = True
+
+        while True:
+            try:
+                emulator_connected = False
+
+                if not self.is_connected():
+                    emulator_connected = self.connect()
+                else:
+                    emulator_connected = True
+
+                valid = False
+                if emulator_connected:
+                    if validate is not None:
+                        valid = validate(self)
+                        logger.info("Emulator connected, validating...")
+                    else:
+                        valid = True
+
+                while not valid:
+                    if not self.is_connected():
+                        emulator_connected = self.connect()
+                    if clear_waiting_message:
+                        logger.info("Waiting on valid state...")
+                        clear_waiting_message = False
+                    await asyncio.sleep(1.0)
+                    if self.is_connected() and validate is not None:
+                        valid = validate(self)
+                    elif self.is_connected():
+                        valid = True
+
+                stop_spam = False
+                logger.info("Emulator connected and ready!")
+                return
+            except Exception as e:
+                await asyncio.sleep(1.0)
+                logger.error(f"Error connecting to emulator, retrying... {str(e)}")
+                self.disconnect()
 
 
 # Example usage and testing code (commented out)
