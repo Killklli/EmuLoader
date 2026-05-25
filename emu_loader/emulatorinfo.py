@@ -1,5 +1,6 @@
 """Emulator configuration and attachment logic for EmuLoader."""
 
+import functools
 import json
 import os
 import urllib.request
@@ -295,6 +296,7 @@ def _parse_emulator_configs(data: List[Dict[str, Any]]) -> Dict[str, EmulatorInf
     return configs
 
 
+@functools.lru_cache(maxsize=None)
 def load_emulator_configs(pull_from_web: bool = True) -> Dict[str, EmulatorInfo]:
     """Load emulator configs from GitHub Pages (if pull_from_web=True) or the local JSON file."""
     if pull_from_web:
