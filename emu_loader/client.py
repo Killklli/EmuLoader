@@ -21,14 +21,9 @@ class EmuLoaderClient:
         self.emulator_info: Optional[EmulatorInfo] = None
         self.connected = False
 
-    def connect(self, pull_from_web: bool = True) -> bool:
-        """Connect to an available emulator.
-
-        Args:
-            pull_from_web: If True (default), fetch the latest emulator config from GitHub Pages
-                           before connecting. If False, use the local emulators.json.
-        """
-        self.emulator_info = connect_to_emulator(pull_from_web=pull_from_web)
+    def connect(self) -> bool:
+        """Connect to an available emulator."""
+        self.emulator_info = connect_to_emulator()
         self.connected = self.emulator_info is not None
         return self.connected
 
