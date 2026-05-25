@@ -306,14 +306,14 @@ def load_emulator_configs(pull_from_web: bool = True) -> Dict[str, EmulatorInfo]
         except Exception as e:
             logger.warning(f"Failed to fetch emulator configs from web ({e}), falling back to local file.")
 
-    # try:
-    #     with open(EMULATOR_CONFIGS_LOCAL, "r", encoding="utf-8") as f:
-    #         data = json.load(f)
-    #     logger.info("Loaded emulator configs from local file.")
-    #     return _parse_emulator_configs(data)
-    # except Exception as e:
-    #     logger.error(f"Failed to load local emulator configs: {e}")
-    #     return {}
+    try:
+        with open(EMULATOR_CONFIGS_LOCAL, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        logger.info("Loaded emulator configs from local file.")
+        return _parse_emulator_configs(data)
+    except Exception as e:
+        logger.error(f"Failed to load local emulator configs: {e}")
+        return {}
 
 
 def attachWrapper(emu: str, configs: Dict[str, EmulatorInfo]) -> EmulatorInfo:
