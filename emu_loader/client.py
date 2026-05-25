@@ -20,6 +20,7 @@ class EmuLoaderClient:
         """Initialize the EmuLoaderClient."""
         self.emulator_info: Optional[EmulatorInfo] = None
         self.connected = False
+        self._poll_task: Optional[asyncio.Task] = None
 
     def connect(self) -> bool:
         """Connect to an available emulator."""
@@ -104,6 +105,9 @@ class EmuLoaderClient:
         logged_waiting_connection = False
         logged_waiting_valid = False
 
+        if self._poll_task is not None and not self._poll_task.done():
+            return
+
         loop = asyncio.get_event_loop()
 
         async def _poll():
@@ -137,4 +141,4 @@ class EmuLoaderClient:
                     self.disconnect()
                     await asyncio.sleep(1.0)
 
-        asyncio.ensure_future(_poll())
+        self._poll_task = asyncio.ensure_future(_poll())
