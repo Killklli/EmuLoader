@@ -44,12 +44,14 @@ class EmuLoaderClient:
         """
         return self.connected and self.emulator_info is not None
 
-    def _raise_not_connected(self):
-        """Raise a not-connected exception, logging it only the first time."""
-        if not self._not_connected_logged:
-            logger.error("Not connected to emulator.")
-            self._not_connected_logged = True
-        raise Exception("Not connected to emulator")
+    def _check_not_connected(self) -> bool:
+        """Log a not-connected warning once. Returns True if NOT connected (caller should return early)."""
+        if not self.is_connected():
+            if not self._not_connected_logged:
+                logger.warning("Not connected to emulator.")
+                self._not_connected_logged = True
+            return True
+        return False
 
     # Direct memory access methods
     def read_u8(self, address: int) -> int:
