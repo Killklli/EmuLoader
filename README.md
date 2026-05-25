@@ -10,7 +10,19 @@ Cross-platform emulator memory access library for N64 emulators. Supports Window
 pip install emu-loader
 ```
 
-Or install from source:
+Install a specific tagged release directly from GitHub:
+
+```bash
+pip install git+https://github.com/Killklli/EmuLoader.git@v1.0.0
+```
+
+Or always track the latest commit on `main`:
+
+```bash
+pip install git+https://github.com/Killklli/EmuLoader.git@main
+```
+
+Or install from a local clone:
 
 ```bash
 pip install .
