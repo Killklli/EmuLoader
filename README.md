@@ -28,6 +28,22 @@ Or install from a local clone:
 pip install .
 ```
 
+### Archipelago World Installation
+
+If you are building an [Archipelago](https://github.com/ArchipelagoMW/Archipelago) world that depends on EmuLoader, add the following line to your `worlds/<your_world>/requirements.txt`:
+
+```
+emu-loader @ git+https://github.com/Killklli/EmuLoader@0eabad285f8b903e5ad649fe6154e1b7b944f4fa#0.1.0
+```
+
+Archipelago's `ModuleUpdate.py` uses a custom `name @ git+url@<commit>#<version>` syntax to pin a specific commit while still allowing version checking via `pkg_resources`. The `#<version>` suffix is **not** a standard URL fragment — it is parsed by Archipelago to derive `name==version` for requirement validation.
+
+To update the pin to a newer commit, replace the commit hash and version accordingly:
+
+```
+emu-loader @ git+https://github.com/Killklli/EmuLoader@<full-commit-hash>#<version>
+```
+
 ## Supported Emulators
 
 | Emulator | Key |
