@@ -65,6 +65,8 @@ New emulators can be added by appending an entry to `emu_loader/emulators.json`.
 | `extra_offset` | string | ✅ | Additional hex offset added to the located base address (e.g. `"0x80000000"`). Use `"0x0"` if no adjustment is needed. |
 | `scan_memory_for_signature` | bool | ❌ | If `true`, the scan range is ignored and EmuLoader instead searches process memory for a known N64 RAM signature. Useful for emulators with dynamic memory layouts. |
 | `signature_alignment` | string | ❌ | Hex alignment boundary used during signature scanning (e.g. `"0x1000"`). Only relevant when `scan_memory_for_signature` is `true`. |
+| `validation_offset` | string | ❌ | Hex offset within RDRAM used to read a test value that confirms the correct base address was found (e.g. `"0x759290"`). Overridden at runtime by the value passed to `EmuLoaderClient`. |
+| `validation_value` | string | ❌ | Expected hex value at `validation_offset` that signals a valid RDRAM base (e.g. `"0x52414D42"`). Overridden at runtime by the value passed to `EmuLoaderClient`. |
 
 ### Example entry
 
@@ -91,7 +93,7 @@ After adding the entry, the new `id` can be passed anywhere EmuLoader accepts an
 ```python
 from emu_loader import EmuLoaderClient
 
-client = EmuLoaderClient()
+client = EmuLoaderClient(0x759290, 0x52414D42)
 
 if client.connect():
     print("Connected to emulator!")
@@ -121,7 +123,7 @@ def validate_rom(client: EmuLoaderClient) -> bool:
         return False
 
 async def game_loop():
-    client = EmuLoaderClient()
+    client = EmuLoaderClient(0x759290, 0x52414D42)
 
     # Always call this first — it will retry until ready.
     await client.wait_for_emulator(validate=validate_rom)
@@ -158,7 +160,7 @@ from emu_loader import EmuLoaderClient
 MY_ROM_MAGIC_ADDRESS = 0x80123456
 MY_ROM_MAGIC_VALUE   = 0xDEADBEEF
 
-client = EmuLoaderClient()
+client = EmuLoaderClient(MY_ROM_MAGIC_ADDRESS, MY_ROM_MAGIC_VALUE)
 
 if client.connect():
     value = client.read_u32(MY_ROM_MAGIC_ADDRESS)
