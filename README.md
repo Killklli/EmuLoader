@@ -33,15 +33,21 @@ pip install .
 If you are building an [Archipelago](https://github.com/ArchipelagoMW/Archipelago) world that depends on EmuLoader, add the following line to your `worlds/<your_world>/requirements.txt`:
 
 ```
-emu-loader @ git+https://github.com/Killklli/EmuLoader@0eabad285f8b903e5ad649fe6154e1b7b944f4fa#0.1.0
+emu-loader @ git+https://github.com/Killklli/EmuLoader@v0.1.0#0.1.0
 ```
 
-Archipelago's `ModuleUpdate.py` uses a custom `name @ git+url@<commit>#<version>` syntax to pin a specific commit while still allowing version checking via `pkg_resources`. The `#<version>` suffix is **not** a standard URL fragment — it is parsed by Archipelago to derive `name==version` for requirement validation.
+Archipelago's `ModuleUpdate.py` uses a custom `name @ git+url@<ref>#<version>` syntax to pin a specific release while still allowing version checking via `pkg_resources`. The `#<version>` suffix is **not** a standard URL fragment — it is parsed by Archipelago to derive `name==version` for requirement validation. The `@<ref>` portion is any valid git ref passed to pip (tag, branch, or full commit SHA).
 
-To update the pin to a newer commit, replace the commit hash and version accordingly:
+To update the pin to a newer release, replace the tag and version accordingly:
 
 ```
-emu-loader @ git+https://github.com/Killklli/EmuLoader@<full-commit-hash>#<version>
+emu-loader @ git+https://github.com/Killklli/EmuLoader@v<version>#<version>
+```
+
+If you need to pin to a specific commit instead of a tag, you can use the full commit SHA:
+
+```
+emu-loader @ git+https://github.com/Killklli/EmuLoader@<full-commit-sha>#<version>
 ```
 
 ## Supported Emulators
