@@ -4,6 +4,7 @@ import asyncio
 from typing import Callable, Dict, Optional
 
 from .emulatorinfo import EmulatorInfo, connect_to_emulator, load_emulator_configs
+from .process import ProcessMemory
 
 try:
     from CommonClient import logger
@@ -16,14 +17,12 @@ except ImportError:
 class EmuLoaderClient:
     """Drop-in replacement client for PJ64Client using direct memory access."""
 
-    def __init__(self, validation_offset: int, validation_value: int, pull_from_web: bool = True):
+    def __init__(self, validation_func: Callable[["ProcessMemory", int], bool], pull_from_web: bool = True):
         """Initialize the EmuLoaderClient and connect to an available emulator.
 
         Args:
-            validation_offset: Game-specific memory offset used to validate the RDRAM
-                               base address.
-            validation_value: Game-specific value expected at the validation offset to
-                              confirm a valid RDRAM base.
+            validation_func: A callable that receives (ProcessMemory, candidate_offset) and
+                             returns True if the candidate offset is the correct RDRAM base.
             pull_from_web: If True, fetch emulator configs from the web before falling
                            back to the local bundled file. Defaults to True.
         """
@@ -33,8 +32,7 @@ class EmuLoaderClient:
         self._not_connected_logged = False
         self.configs = load_emulator_configs(pull_from_web=pull_from_web)
         for emu in self.configs.values():
-            emu.validation_offset = validation_offset
-            emu.validation_value = validation_value
+            emu.validation_func = validation_func
         self.connect()
 
     def connect(self) -> bool:

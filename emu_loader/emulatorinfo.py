@@ -3,7 +3,7 @@
 import json
 import os
 import urllib.request
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .process import IS_LINUX, ProcessMemory, get_running_processes
 from .utils import sanitize_and_trim
@@ -33,13 +33,12 @@ class EmulatorInfo:
         additional_lookup: bool,
         lower_offset_range: int,
         upper_offset_range: int,
-        validation_offset: int,
-        validation_value: int,
         range_step: int = 16,
         extra_offset: int = 0,
         linux_dll_name: Optional[str] = None,
         scan_memory_for_signature: bool = False,
         signature_alignment: int = 0,
+        validation_func: Optional[Callable[["ProcessMemory", int], bool]] = None,
     ):
         """Initialize with given parameters."""
         self.id = id
@@ -55,8 +54,7 @@ class EmulatorInfo:
         self.extra_offset = extra_offset
         self.scan_memory_for_signature = scan_memory_for_signature
         self.signature_alignment = signature_alignment
-        self.validation_offset = validation_offset
-        self.validation_value = validation_value
+        self.validation_func = validation_func
         self.connected_process: Optional[ProcessMemory] = None
         self.connected_offset: Optional[int] = None
         self.connection_error: Optional[str] = None
@@ -157,18 +155,17 @@ class EmulatorInfo:
             else:
                 read_address = address_dll + pot_off
 
-            addr = read_address + self.extra_offset + self.validation_offset
+            candidate_offset = read_address + self.extra_offset
 
             try:
-                test_value = pm.read_int(addr)
+                is_valid = self.validation_func(pm, candidate_offset)
+                has_seen_nonzero = True
             except Exception:
                 continue
-            if test_value != 0:
-                has_seen_nonzero = True
-            if test_value == self.validation_value:
+            if is_valid:
                 self.connected_process = pm
-                self.connected_offset = read_address + self.extra_offset
-                return (pm, read_address + self.extra_offset)
+                self.connected_offset = candidate_offset
+                return (pm, candidate_offset)
 
         if not has_seen_nonzero:
             self.raiseError(f"Could not read any data from {self.readable_emulator_name}")
@@ -289,8 +286,6 @@ def _parse_emulator_configs(data: List[Dict[str, Any]]) -> Dict[str, EmulatorInf
             additional_lookup=entry["additional_lookup"],
             lower_offset_range=int(entry["lower_offset_range"], 16),
             upper_offset_range=int(entry["upper_offset_range"], 16),
-            validation_offset=int(entry.get("validation_offset", "0x759290"), 16),
-            validation_value=int(entry.get("validation_value", "0x52414D42"), 16),
             range_step=int(entry.get("range_step", "0x10"), 16),
             extra_offset=int(entry.get("extra_offset", "0x0"), 16),
             linux_dll_name=entry.get("linux_dll_name"),
