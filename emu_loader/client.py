@@ -128,6 +128,7 @@ class EmuLoaderClient:
         logged_waiting_valid = False
 
         if self._poll_task is not None and not self._poll_task.done():
+            await self._poll_task
             return
 
         loop = asyncio.get_event_loop()
@@ -165,3 +166,4 @@ class EmuLoaderClient:
                     await asyncio.sleep(1.0)
 
         self._poll_task = asyncio.ensure_future(_poll())
+        await self._poll_task
