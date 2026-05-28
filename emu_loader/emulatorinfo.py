@@ -33,7 +33,6 @@ def _build_ssl_context() -> ssl.SSLContext:
     paths = ssl.get_default_verify_paths()
     if (paths.cafile and os.path.isfile(paths.cafile)) \
             or (paths.capath and os.path.isdir(paths.capath)):
-        print("default works")
         return ssl.create_default_context()
 
     try:
