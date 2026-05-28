@@ -30,6 +30,12 @@ _CA_BUNDLE_CANDIDATES = (
 
 def _build_ssl_context() -> ssl.SSLContext:
     """Build an SSLContext that finds a CA bundle even in frozen Archipelago builds."""
+    paths = ssl.get_default_verify_paths()
+    if (paths.cafile and os.path.isfile(paths.cafile)) \
+            or (paths.capath and os.path.isdir(paths.capath)):
+        print("default works")
+        return ssl.create_default_context()
+
     try:
         import certifi  # type: ignore[import-not-found]
         return ssl.create_default_context(cafile=certifi.where())
