@@ -21,9 +21,7 @@ except ImportError:
 EMULATOR_CONFIGS_URL = "https://killklli.github.io/EmuLoader/emulators.json"
 EMULATOR_CONFIGS_FILENAME = "emulators.json"
 
-# Common CA bundle locations across distros. Frozen Archipelago builds on Linux
-# ship libssl with a build-time OPENSSLDIR that doesn't exist on user machines
-# and bundle no certs of their own, so we probe the host for a usable trust store.
+# Common CA bundle locations across distros
 _CA_BUNDLE_CANDIDATES = (
     "/etc/ssl/certs/ca-certificates.crt",                  # Debian, Ubuntu, Arch
     "/etc/pki/tls/certs/ca-bundle.crt",                    # RHEL, CentOS, Fedora
