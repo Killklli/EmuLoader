@@ -2,6 +2,7 @@
 
 import json
 import os
+import ssl
 import urllib.request
 from importlib import resources
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -19,6 +20,32 @@ except ImportError:
 
 EMULATOR_CONFIGS_URL = "https://killklli.github.io/EmuLoader/emulators.json"
 EMULATOR_CONFIGS_FILENAME = "emulators.json"
+
+# Common CA bundle locations across distros. Frozen Archipelago builds on Linux
+# ship libssl with a build-time OPENSSLDIR that doesn't exist on user machines
+# and bundle no certs of their own, so we probe the host for a usable trust store.
+_CA_BUNDLE_CANDIDATES = (
+    "/etc/ssl/certs/ca-certificates.crt",                  # Debian, Ubuntu, Arch
+    "/etc/pki/tls/certs/ca-bundle.crt",                    # RHEL, CentOS, Fedora
+)
+
+
+def _build_ssl_context() -> ssl.SSLContext:
+    """Build an SSLContext that finds a CA bundle even in frozen Archipelago builds."""
+    try:
+        import certifi  # type: ignore[import-not-found]
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        pass
+
+    for path in _CA_BUNDLE_CANDIDATES:
+        if os.path.isfile(path):
+            try:
+                return ssl.create_default_context(cafile=path)
+            except Exception:
+                continue
+
+    return ssl.create_default_context()
 
 
 class EmulatorInfo:
@@ -300,7 +327,8 @@ def load_emulator_configs(pull_from_web: bool = True) -> Dict[str, EmulatorInfo]
     """Load emulator configs from GitHub Pages (if pull_from_web=True) or the local JSON file."""
     if pull_from_web:
         try:
-            with urllib.request.urlopen(EMULATOR_CONFIGS_URL, timeout=5) as response:
+            ctx = _build_ssl_context()
+            with urllib.request.urlopen(EMULATOR_CONFIGS_URL, timeout=5, context=ctx) as response:
                 data = json.loads(response.read().decode("utf-8"))
             logger.info("Loaded emulator configs from web.")
             return _parse_emulator_configs(data)
