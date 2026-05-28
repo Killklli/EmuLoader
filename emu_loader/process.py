@@ -11,6 +11,7 @@ from .ptrace import check_and_fix_ptrace_scope
 # Detect operating system
 IS_WINDOWS = platform.system() == "Windows"
 IS_LINUX = platform.system() == "Linux"
+IS_MACOS = platform.system() == "Darwin"
 
 # Windows API constants and structures
 if IS_WINDOWS:

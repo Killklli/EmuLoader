@@ -7,7 +7,8 @@ import urllib.request
 from importlib import resources
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from .process import IS_LINUX, ProcessMemory, get_running_processes
+from .process import IS_LINUX, IS_MACOS, ProcessMemory, get_running_processes
+from .retroarch_udp import RetroArchNetworkInfo
 from .utils import sanitize_and_trim
 
 try:
@@ -101,6 +102,10 @@ class EmulatorInfo:
         """Get the appropriate library name for the current platform."""
         if IS_LINUX and self.linux_dll_name:
             return self.linux_dll_name
+        if IS_MACOS and self.linux_dll_name:
+            # Most mupen64plus dylibs share the same stem on macOS
+            so = self.linux_dll_name
+            return so.replace(".so", ".dylib") if so.endswith(".so") else so
         return self.dll_name
 
     def get_possible_library_names(self) -> List[str]:
@@ -110,9 +115,10 @@ class EmulatorInfo:
         if primary_name:
             names.append(primary_name)
 
-        if IS_LINUX and self.dll_name:
+        if (IS_LINUX or IS_MACOS) and self.dll_name:
+            ext = ".dylib" if IS_MACOS else ".so"
             if self.dll_name.endswith(".dll"):
-                so_name = self.dll_name[:-4] + ".so"
+                so_name = self.dll_name[:-4] + ext
                 if so_name not in names:
                     names.append(so_name)
 
@@ -121,9 +127,9 @@ class EmulatorInfo:
                 if lib_name not in names:
                     names.append(lib_name)
                 if lib_name.endswith(".dll"):
-                    lib_so_name = lib_name[:-4] + ".so"
-                    if lib_so_name not in names:
-                        names.append(lib_so_name)
+                    lib_ext_name = lib_name[:-4] + ext
+                    if lib_ext_name not in names:
+                        names.append(lib_ext_name)
 
         return [name for name in names if name]
 
@@ -362,8 +368,19 @@ def attachWrapper(emu: str, configs: Dict[str, EmulatorInfo]) -> EmulatorInfo:
     return configs[emu]
 
 
-def connect_to_emulator(configs: Dict[str, EmulatorInfo]) -> Optional[EmulatorInfo]:
+def connect_to_emulator(configs: Dict[str, EmulatorInfo]) -> Optional[Any]:
     """Try to connect to any available emulator and return the connected instance."""
+    # On macOS, process-memory access is not supported; RetroArch UDP is the only option
+    if IS_MACOS:
+        logger.info("macOS detected: RetroArch Network Commands (UDP) is the only supported connection method.")
+        retroarch_network = RetroArchNetworkInfo()
+        if retroarch_network.attach_to_emulator():
+            logger.info(f"Connected to {retroarch_network.readable_emulator_name}")
+            return retroarch_network
+        if retroarch_network.connection_error:
+            logger.info(f"Failed to connect via RetroArch Network Commands: {retroarch_network.connection_error}")
+        return None
+
     for emulator_info in configs.values():
         try:
             if emulator_info.attach_to_emulator():
@@ -373,4 +390,11 @@ def connect_to_emulator(configs: Dict[str, EmulatorInfo]) -> Optional[EmulatorIn
         except Exception as e:
             logger.info(f"Failed to connect to {emulator_info.readable_emulator_name}: {str(e)}")
             continue
+
+    # Fall back to RetroArch UDP if no process-based emulator was found
+    retroarch_network = RetroArchNetworkInfo()
+    if retroarch_network.attach_to_emulator():
+        logger.info(f"Connected to {retroarch_network.readable_emulator_name}")
+        return retroarch_network
+
     return None
