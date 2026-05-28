@@ -144,5 +144,29 @@
         "extra_offset": "0x0",
         "scan_memory_for_signature": true,
         "signature_alignment": "0x1000"
+    },
+    {
+        "id": "Project64Scan",
+        "readable_emulator_name": "Project64-compatible",
+        "process_name": "project64",
+        "find_dll": false,
+        "dll_name": null,
+        "linux_dll_name": null,
+        "additional_lookup": false,
+        "lower_offset_range": "0x0",
+        "upper_offset_range": "0x80000000",
+        "range_step": "0x10000"
+    },
+    {
+        "id": "Project64_EM",
+        "readable_emulator_name": "Project64_EM (PJ64 3.0.1)",
+        "process_name": "project64",
+        "find_dll": false,
+        "dll_name": null,
+        "linux_dll_name": null,
+        "additional_lookup": false,
+        "lower_offset_range": "0x0",
+        "upper_offset_range": "0x0",
+        "scan_memory_for_signature": true
     }
 ]
