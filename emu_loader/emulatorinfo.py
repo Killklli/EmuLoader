@@ -23,20 +23,26 @@ EMULATOR_CONFIGS_FILENAME = "emulators.json"
 
 # Common CA bundle locations across distros
 _CA_BUNDLE_CANDIDATES = (
-    "/etc/ssl/certs/ca-certificates.crt",                  # Debian, Ubuntu, Arch
-    "/etc/pki/tls/certs/ca-bundle.crt",                    # RHEL, CentOS, Fedora
+    "/etc/ssl/certs/ca-certificates.crt",  # Debian, Ubuntu, Arch
+    "/etc/pki/tls/certs/ca-bundle.crt",  # RHEL, CentOS, Fedora (legacy)
+    "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",  # Fedora / newer RHEL
+    "/etc/ssl/ca-bundle.pem",  # openSUSE
+    "/etc/ssl/cert.pem",  # macOS, Alpine, FreeBSD
+    "/usr/local/etc/openssl/cert.pem",  # macOS Homebrew OpenSSL
+    "/usr/local/share/certs/ca-root-nss.crt",  # FreeBSD
+    "/nix/var/nix/profiles/default/etc/ssl/certs/ca-bundle.crt",  # NixOS
 )
 
 
 def _build_ssl_context() -> ssl.SSLContext:
     """Build an SSLContext that finds a CA bundle even in frozen Archipelago builds."""
     paths = ssl.get_default_verify_paths()
-    if (paths.cafile and os.path.isfile(paths.cafile)) \
-            or (paths.capath and os.path.isdir(paths.capath)):
+    if (paths.cafile and os.path.isfile(paths.cafile)) or (paths.capath and os.path.isdir(paths.capath)):
         return ssl.create_default_context()
 
     try:
         import certifi
+
         logger.debug("SSL: using certifi bundle")
         return ssl.create_default_context(cafile=certifi.where())
     except Exception:
@@ -49,7 +55,6 @@ def _build_ssl_context() -> ssl.SSLContext:
 
     logger.debug("SSL: no CA bundle found; falling back to default context")
     return ssl.create_default_context()
-
 
 
 class EmulatorInfo:

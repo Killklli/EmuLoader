@@ -33,7 +33,7 @@ pip install .
 If you are building an [Archipelago](https://github.com/ArchipelagoMW/Archipelago) world that depends on EmuLoader, add the following line to your `worlds/<your_world>/requirements.txt`:
 
 ```
-emu-loader @ git+https://github.com/Killklli/EmuLoader@v0.1.0#0.1.0
+emu-loader @ git+https://github.com/Killklli/EmuLoader@v0.1.2#0.1.2
 ```
 
 Archipelago's `ModuleUpdate.py` uses a custom `name @ git+url@<ref>#<version>` syntax to pin a specific release while still allowing version checking via `pkg_resources`. The `#<version>` suffix is **not** a standard URL fragment — it is parsed by Archipelago to derive `name==version` for requirement validation. The `@<ref>` portion is any valid git ref passed to pip (tag, branch, or full commit SHA).
@@ -87,8 +87,6 @@ New emulators can be added by appending an entry to `emu_loader/emulators.json`.
 | `extra_offset` | string | ✅ | Additional hex offset added to the located base address (e.g. `"0x80000000"`). Use `"0x0"` if no adjustment is needed. |
 | `scan_memory_for_signature` | bool | ❌ | If `true`, the scan range is ignored and EmuLoader instead searches process memory for a known N64 RAM signature. Useful for emulators with dynamic memory layouts. |
 | `signature_alignment` | string | ❌ | Hex alignment boundary used during signature scanning (e.g. `"0x1000"`). Only relevant when `scan_memory_for_signature` is `true`. |
-| `validation_offset` | string | ❌ | Hex offset within RDRAM used to read a test value that confirms the correct base address was found (e.g. `"0x759290"`). Overridden at runtime by the value passed to `EmuLoaderClient`. |
-| `validation_value` | string | ❌ | Expected hex value at `validation_offset` that signals a valid RDRAM base (e.g. `"0x52414D42"`). Overridden at runtime by the value passed to `EmuLoaderClient`. |
 
 ### Example entry
 
@@ -114,8 +112,20 @@ After adding the entry, the new `id` can be passed anywhere EmuLoader accepts an
 
 ```python
 from emu_loader import EmuLoaderClient
+from emu_loader.process import ProcessMemory
 
-client = EmuLoaderClient(0x759290, 0x52414D42)
+MY_ROM_MAGIC_ADDRESS = 0x759290
+MY_ROM_MAGIC_VALUE   = 0x52414D42
+
+def validate_rom(mem: ProcessMemory, base: int) -> bool:
+    """Return True when the correct ROM is loaded at the candidate base address."""
+    try:
+        value = mem.read_int(base + (MY_ROM_MAGIC_ADDRESS & 0x7FFFFFFF))
+        return value == MY_ROM_MAGIC_VALUE
+    except Exception:
+        return False
+
+client = EmuLoaderClient(validate_rom)
 
 if client.connect():
     print("Connected to emulator!")
@@ -133,9 +143,18 @@ if client.connect():
 ```python
 import asyncio
 from emu_loader import EmuLoaderClient
+from emu_loader.process import ProcessMemory
 
 MY_ROM_MAGIC_ADDRESS = 0x80123456
 MY_ROM_MAGIC_VALUE   = 0xDEADBEEF
+
+def find_rom(mem: ProcessMemory, base: int) -> bool:
+    """Return True only when the correct ROM is loaded at the candidate base address."""
+    try:
+        value = mem.read_int(base + (MY_ROM_MAGIC_ADDRESS & 0x7FFFFFFF))
+        return value == MY_ROM_MAGIC_VALUE
+    except Exception:
+        return False
 
 def validate_rom(client: EmuLoaderClient) -> bool:
     """Return True only when the correct ROM is loaded."""
@@ -145,7 +164,7 @@ def validate_rom(client: EmuLoaderClient) -> bool:
         return False
 
 async def game_loop():
-    client = EmuLoaderClient(0x759290, 0x52414D42)
+    client = EmuLoaderClient(find_rom)
 
     # Always call this first — it will retry until ready.
     await client.wait_for_emulator(validate=validate_rom)
@@ -178,11 +197,20 @@ A typical validation pattern is to check a known magic value or game-specific fl
 
 ```python
 from emu_loader import EmuLoaderClient
+from emu_loader.process import ProcessMemory
 
 MY_ROM_MAGIC_ADDRESS = 0x80123456
 MY_ROM_MAGIC_VALUE   = 0xDEADBEEF
 
-client = EmuLoaderClient(MY_ROM_MAGIC_ADDRESS, MY_ROM_MAGIC_VALUE)
+def validate_base(mem: ProcessMemory, base: int) -> bool:
+    """Called during emulator attachment — return True if the correct ROM is at this base."""
+    try:
+        value = mem.read_int(base + (MY_ROM_MAGIC_ADDRESS & 0x7FFFFFFF))
+        return value == MY_ROM_MAGIC_VALUE
+    except Exception:
+        return False
+
+client = EmuLoaderClient(validate_base)
 
 if client.connect():
     value = client.read_u32(MY_ROM_MAGIC_ADDRESS)
@@ -195,6 +223,8 @@ if client.connect():
 ```
 
 Adapt the address and expected value to whatever sentinel your ROM exposes (e.g. a header checksum, a version flag, or an AP-status byte).
+
+> **Note:** The `validation_func` receives a raw `ProcessMemory` object and a candidate RDRAM base address (host memory). It is called during the emulator attachment scan to confirm the correct base was found. To read an N64 virtual address, strip the high bit (`addr & 0x7FFFFFFF`) and add it to `base`, then use `mem.read_int(base + physical_addr)` (4-byte little-endian) or `mem.read_bytes(...)` for raw access.
 
 ## Memory Access
 
