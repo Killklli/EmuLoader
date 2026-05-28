@@ -37,19 +37,20 @@ def _build_ssl_context() -> ssl.SSLContext:
         return ssl.create_default_context()
 
     try:
-        import certifi  # type: ignore[import-not-found]
+        import certifi
+        logger.debug("SSL: using certifi bundle")
         return ssl.create_default_context(cafile=certifi.where())
     except Exception:
         pass
 
     for path in _CA_BUNDLE_CANDIDATES:
         if os.path.isfile(path):
-            try:
-                return ssl.create_default_context(cafile=path)
-            except Exception:
-                continue
+            logger.debug(f"SSL: using system CA bundle {path}")
+            return ssl.create_default_context(cafile=path)
 
+    logger.debug("SSL: no CA bundle found; falling back to default context")
     return ssl.create_default_context()
+
 
 
 class EmulatorInfo:
