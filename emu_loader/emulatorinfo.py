@@ -3,6 +3,7 @@
 import json
 import os
 import urllib.request
+from importlib import resources
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .process import IS_LINUX, ProcessMemory, get_running_processes
@@ -17,7 +18,7 @@ except ImportError:
 
 
 EMULATOR_CONFIGS_URL = "https://killklli.github.io/EmuLoader/emulators.json"
-EMULATOR_CONFIGS_LOCAL = os.path.join(os.path.dirname(__file__), "emulators.json")
+EMULATOR_CONFIGS_FILENAME = "emulators.json"
 
 
 class EmulatorInfo:
@@ -307,8 +308,10 @@ def load_emulator_configs(pull_from_web: bool = True) -> Dict[str, EmulatorInfo]
             logger.warning(f"Failed to fetch emulator configs from web ({e}), falling back to local file.")
 
     try:
-        with open(EMULATOR_CONFIGS_LOCAL, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        # Use importlib.resources so the JSON loads correctly whether the package
+        # lives on the filesystem or inside a zip import (e.g. an .apworld).
+        raw = resources.files(__package__).joinpath(EMULATOR_CONFIGS_FILENAME).read_text(encoding="utf-8")
+        data = json.loads(raw)
         logger.info("Loaded emulator configs from local file.")
         return _parse_emulator_configs(data)
     except Exception as e:
