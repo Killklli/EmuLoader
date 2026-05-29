@@ -4,6 +4,62 @@ Cross-platform emulator memory access library for N64 emulators. Supports Window
 
 > **Note on emulator config loading:** The emulator definitions bundled with this package come from [`emu_loader/emulators.json`](emu_loader/emulators.json) in this repository. However, when `pull_from_web=True` is passed by the implementor (which is the default), EmuLoader will first attempt to fetch the latest config directly from [https://killklli.github.io/EmuLoader/emulators.json](https://killklli.github.io/EmuLoader/emulators.json) — which always reflects the `emulators.json` on the `main` branch. This means emulator support can be updated or corrected without requiring end users to upgrade the package. If the remote fetch fails, EmuLoader falls back to the bundled local copy automatically. To opt out of remote fetching entirely, pass `pull_from_web=False` when connecting.
 
+## Archipelago Client
+
+When EmuLoader is dropped into an Archipelago install at `worlds/EmuLoader/`, it ships a **self-contained Archipelago client** — a Kivy GUI with an AP server connection and an emulator watcher. It registers an **"EmuLoader Client"** button in the Archipelago Launcher (no game install required) via [`worlds/EmuLoader/__init__.py`](__init__.py).
+
+Crucially, **N64 worlds do not depend on EmuLoader as a package.** A world advertises its client logic as *global context* on its `World` class, and the client discovers it at runtime through `AutoWorldRegister` (the same mechanism as [`discover_n64_worlds()`](emu_loader/n64_registry.py)). This means no `requirements.txt` pin and no import coupling — the world just sets plain class attributes:
+
+```python
+# In your apworld's __init__.py — note: NO import from emu_loader is needed.
+class SomeN64World(World):                 # optionally also (N64WorldMixin, World)
+    game = "Some N64 Game"
+
+    # ROM identification (existing N64WorldMixin contract):
+    n64_validation_offset = 0x3B
+    n64_validation_value  = b"\x4E"
+    # ...or a custom pointer-chasing validator:
+    # n64_validation_function = staticmethod(my_validator)
+
+    # NEW: the per-game client logic the EmuLoader client runs once the ROM is detected.
+    n64_client_handler = SomeN64Handler
+```
+
+`n64_client_handler` may be a class (instantiated once) or an instance. It is duck-typed for:
+
+| Member | Required | Purpose |
+|---|:---:|---|
+| `async def game_watcher(self, ctx)` | ✅ | Per-tick loop: read state, check locations, give items, set goal. Runs ~every `ctx.watcher_timeout` s while connected. |
+| `items_handling: int` | | AP `items_handling` flags sent on connect (defaults to `0b001`). |
+| `async def validate_rom(self, ctx) -> bool` | | Extra in-RAM readiness check; may set `ctx.game`. |
+| `async def set_auth(self, ctx)` | | Set `ctx.auth` from the ROM if the slot name is stored there. |
+| `def on_package(self, ctx, cmd, args)` | | React to server packets. |
+
+The handler reads and writes emulator memory **through `ctx`** — `ctx.read_u8/read_u16/read_u32`, `ctx.write_u8/write_u16/write_u32`, `ctx.read_bytestring`, `ctx.write_bytestring` — so it never imports anything from EmuLoader. An optional `EmuLoaderClientHandler` `Protocol` lives in [`emu_loader/ap_client/__init__.py`](emu_loader/ap_client/__init__.py) purely for typing/documentation; you may reference it under `TYPE_CHECKING` or ignore it entirely.
+
+Example handler skeleton (defined in *your* world's package):
+
+```python
+class SomeN64Handler:
+    items_handling = 0b001
+
+    async def validate_rom(self, ctx) -> bool:
+        return ctx.read_u8(0x80000000) != 0   # ROM/AP ready flag
+
+    async def game_watcher(self, ctx) -> None:
+        from NetUtils import ClientStatus
+        # check a location
+        if ctx.read_u8(LOCATION_FLAG_ADDR):
+            await ctx.check_locations([BASE_ID + 0])
+        # give received items
+        for item in ctx.items_received:
+            ctx.write_u8(ITEM_ADDR, item.item & 0xFF)
+        # report goal
+        if ctx.read_u8(GAME_COMPLETE_ADDR) and not ctx.finished_game:
+            await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
+            ctx.finished_game = True
+```
+
 ## Linux Notes
 
 On Linux, memory access uses `/proc/<pid>/mem`. If ptrace restrictions are enabled (`/proc/sys/kernel/yama/ptrace_scope` > 0), the library will attempt to relax them automatically using `sudo`. You may be prompted for your password.
@@ -70,25 +126,9 @@ After adding the entry, the new `id` can be passed anywhere EmuLoader accepts an
 
 ### Archipelago World Installation
 
-If you are building an [Archipelago](https://github.com/ArchipelagoMW/Archipelago) world that depends on EmuLoader, add the following line to your `worlds/<your_world>/requirements.txt`:
+EmuLoader is shipped as a bundled Archipelago client folder (`worlds/EmuLoader/`); it is **no longer consumed as a pip dependency by worlds.** A world adds EmuLoader support purely by exposing the global context described in [Archipelago Client](#archipelago-client) above — `n64_validation_*` and `n64_client_handler` class attributes — with **no `requirements.txt` entry and no `import emu_loader`**. The client discovers worlds at runtime via `AutoWorldRegister`.
 
-```
-emu-loader @ git+https://github.com/Killklli/EmuLoader@v0.1.2#0.1.2
-```
-
-Archipelago's `ModuleUpdate.py` uses a custom `name @ git+url@<ref>#<version>` syntax to pin a specific release while still allowing version checking via `pkg_resources`. The `#<version>` suffix is **not** a standard URL fragment — it is parsed by Archipelago to derive `name==version` for requirement validation. The `@<ref>` portion is any valid git ref passed to pip (tag, branch, or full commit SHA).
-
-To update the pin to a newer release, replace the tag and version accordingly:
-
-```
-emu-loader @ git+https://github.com/Killklli/EmuLoader@v<version>#<version>
-```
-
-If you need to pin to a specific commit instead of a tag, you can use the full commit SHA:
-
-```
-emu-loader @ git+https://github.com/Killklli/EmuLoader@<full-commit-sha>#<version>
-```
+> The `pip install` instructions below remain valid for using EmuLoader as a standalone memory-access library outside of Archipelago.
 
 ## Usage
 
