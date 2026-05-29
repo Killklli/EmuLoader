@@ -110,24 +110,15 @@ After adding the entry, the new `id` can be passed anywhere EmuLoader accepts an
 
 ## Usage
 
+The simplest way to create a client is to pass the address and expected value that uniquely identify your ROM in RDRAM. EmuLoader will automatically scan emulator memory for a location where that value is found at that offset:
+
 ```python
 from emu_loader import EmuLoaderClient
-from emu_loader.process import ProcessMemory
 
-MY_ROM_MAGIC_ADDRESS = 0x759290
-MY_ROM_MAGIC_VALUE   = 0x52414D42
+# DK64 example — 0x759290 holds the magic value 0x52414D42 ("RAMB") in the correct ROM
+client = EmuLoaderClient(signature_offset=0x759290, signature_value=0x52414D42)
 
-def validate_rom(mem: ProcessMemory, base: int) -> bool:
-    """Return True when the correct ROM is loaded at the candidate base address."""
-    try:
-        value = mem.read_int(base + (MY_ROM_MAGIC_ADDRESS & 0x7FFFFFFF))
-        return value == MY_ROM_MAGIC_VALUE
-    except Exception:
-        return False
-
-client = EmuLoaderClient(validate_rom)
-
-if client.connect():
+if client.is_connected():
     print("Connected to emulator!")
 
     value = client.read_u32(0x807ED000)
@@ -136,64 +127,7 @@ if client.connect():
     client.disconnect()
 ```
 
-## Async Game Loop Integration
-
-`wait_for_emulator` is designed to be called **at the very start of your async game logic loop** before any memory reads or writes. It blocks until an emulator is detected and — optionally — until your ROM validation passes. Once it returns you can safely proceed with game logic knowing the connection is ready.
-
-```python
-import asyncio
-from emu_loader import EmuLoaderClient
-from emu_loader.process import ProcessMemory
-
-MY_ROM_MAGIC_ADDRESS = 0x80123456
-MY_ROM_MAGIC_VALUE   = 0xDEADBEEF
-
-def find_rom(mem: ProcessMemory, base: int) -> bool:
-    """Return True only when the correct ROM is loaded at the candidate base address."""
-    try:
-        value = mem.read_int(base + (MY_ROM_MAGIC_ADDRESS & 0x7FFFFFFF))
-        return value == MY_ROM_MAGIC_VALUE
-    except Exception:
-        return False
-
-def validate_rom(client: EmuLoaderClient) -> bool:
-    """Return True only when the correct ROM is loaded."""
-    try:
-        return client.read_u32(MY_ROM_MAGIC_ADDRESS) == MY_ROM_MAGIC_VALUE
-    except Exception:
-        return False
-
-async def game_loop():
-    client = EmuLoaderClient(find_rom)
-
-    # Always call this first — it will retry until ready.
-    await client.wait_for_emulator(validate=validate_rom)
-
-    # From here the emulator is connected and the ROM is confirmed valid.
-    while True:
-        try:
-            value = client.read_u32(0x807ED000)
-            # ... your per-tick game logic ...
-            await asyncio.sleep(0.1)
-        except Exception as e:
-            print(f"Connection lost: {e}")
-            # Re-enter the wait loop if the connection drops.
-            await client.wait_for_emulator(validate=validate_rom)
-
-asyncio.run(game_loop())
-```
-
-If you don't need ROM validation — for example you just want to wait until *any* emulator is running — omit the `validate` argument:
-
-```python
-await client.wait_for_emulator()
-```
-
-## ROM Validation
-
-**EmuLoader does not perform any ROM validation itself.** Before reading or writing game memory, you are responsible for verifying that the correct ROM is loaded in the emulator. Skipping this step may cause incorrect reads/writes against an unintended game.
-
-A typical validation pattern is to check a known magic value or game-specific flag at a fixed memory address:
+For games whose RDRAM marker cannot be expressed as a single fixed-value equality check, pass a `validation_func` instead:
 
 ```python
 from emu_loader import EmuLoaderClient
@@ -210,21 +144,91 @@ def validate_base(mem: ProcessMemory, base: int) -> bool:
     except Exception:
         return False
 
-client = EmuLoaderClient(validate_base)
+client = EmuLoaderClient(validation_func=validate_base)
 
-if client.connect():
+if client.is_connected():
     value = client.read_u32(MY_ROM_MAGIC_ADDRESS)
-    if value != MY_ROM_MAGIC_VALUE:
-        print("Wrong ROM loaded — disconnecting.")
-        client.disconnect()
-    else:
-        print("ROM validated, proceeding.")
-        # ... your game logic here
+    print(f"ROM value: {value:#010x}")
+    client.disconnect()
 ```
 
-Adapt the address and expected value to whatever sentinel your ROM exposes (e.g. a header checksum, a version flag, or an AP-status byte).
+> **Note:** You must supply **either** `(signature_offset, signature_value)` **or** `validation_func`. Omitting both will raise a `ValueError`.
 
-> **Note:** The `validation_func` receives a raw `ProcessMemory` object and a candidate RDRAM base address (host memory). It is called during the emulator attachment scan to confirm the correct base was found. To read an N64 virtual address, strip the high bit (`addr & 0x7FFFFFFF`) and add it to `base`, then use `mem.read_int(base + physical_addr)` (4-byte little-endian) or `mem.read_bytes(...)` for raw access.
+## Async Game Loop Integration
+
+`wait_for_emulator` is designed to be called **at the very start of your async game logic loop** before any memory reads or writes. It blocks until an emulator is detected and — optionally — until your ROM validation passes. Once it returns you can safely proceed with game logic knowing the connection is ready.
+
+The `validate` callback receives the **connected `EmuLoaderClient` instance** so you can use the full memory-read API to confirm game state:
+
+```python
+import asyncio
+from emu_loader import EmuLoaderClient
+
+MY_ROM_MAGIC_ADDRESS = 0x80123456
+MY_ROM_MAGIC_VALUE   = 0xDEADBEEF
+
+def rom_is_ready(client: EmuLoaderClient) -> bool:
+    """Return True only when the correct ROM is loaded and ready."""
+    try:
+        return client.read_u32(MY_ROM_MAGIC_ADDRESS) == MY_ROM_MAGIC_VALUE
+    except Exception:
+        return False
+
+async def game_loop():
+    # Create the client once — pass the signature that identifies your ROM in RDRAM.
+    client = EmuLoaderClient(signature_offset=0x759290, signature_value=0x52414D42)
+
+    # Always call this first — it will retry until an emulator is found and the
+    # optional validate callback returns True.
+    await client.wait_for_emulator(validate=rom_is_ready)
+
+    # From here the emulator is connected and the ROM is confirmed valid.
+    while True:
+        try:
+            value = client.read_u32(0x807ED000)
+            # ... your per-tick game logic ...
+            await asyncio.sleep(0.1)
+        except Exception as e:
+            print(f"Connection lost: {e}")
+            # Re-enter the wait loop if the connection drops.
+            await client.wait_for_emulator(validate=rom_is_ready)
+
+asyncio.run(game_loop())
+```
+
+### DK64 Randomizer example
+
+This is how the [DK64 Randomizer Archipelago client](https://github.com/2dos/DK64-Randomizer/pull/3318) uses EmuLoader:
+
+```python
+from emu_loader import EmuLoaderClient
+
+def rom_ap_ready(n64_client: EmuLoaderClient) -> bool:
+    """Return True once the ROM signals Archipelago is ready."""
+    return (
+        n64_client.read_u8(DK64MemoryMap.rom_flags)
+        & DK64MemoryMap.rom_flag_ap_status
+        == DK64MemoryMap.rom_flag_ap_status
+    )
+
+# Instantiate with the DK64 ROM signature — no validation_func needed for base detection.
+self.n64_client = EmuLoaderClient(signature_offset=0x759290, signature_value=0x52414D42)
+
+# Wait for an emulator AND for the ROM to signal it is AP-ready.
+await self.n64_client.wait_for_emulator(validate=rom_ap_ready)
+```
+
+If you don't need ROM validation — for example you just want to wait until *any* emulator is running — omit the `validate` argument:
+
+```python
+await client.wait_for_emulator()
+```
+
+## ROM Validation
+
+See [Usage](#usage) above for how to supply a ROM identity check via `signature_offset`/`signature_value` or `validation_func` — these are used during RDRAM base detection when the client first attaches to an emulator.
+
+The `validate` callback on `wait_for_emulator` serves a different purpose: it receives the **already-connected `EmuLoaderClient`** and lets you confirm in-game state (e.g. an AP-status flag) before your game loop proceeds. Adapt the address and expected value to whatever sentinel your ROM exposes.
 
 ## Memory Access
 
