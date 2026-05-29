@@ -42,7 +42,16 @@ class EmuLoaderClient:
                              chain rather than a fixed constant (e.g. Banjo-Tooie).
             pull_from_web: If True, fetch emulator configs from the web before falling
                            back to the local bundled file. Defaults to True.
+
+        Raises:
+            ValueError: if neither a validation_func nor a complete
+                        (signature_offset, signature_value) pair is supplied.
         """
+        if validation_func is None and (signature_offset is None or signature_value is None):
+            raise ValueError(
+                "EmuLoaderClient requires a way to detect the RDRAM base: pass either a "
+                "validation_func, or both signature_offset and signature_value."
+            )
         self.emulator_info: Optional[EmulatorInfo] = None
         self.connected = False
         self._poll_task: Optional[asyncio.Task] = None
