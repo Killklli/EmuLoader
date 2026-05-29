@@ -1,10 +1,19 @@
 """EmuLoaderClient - high-level drop-in client for emulator memory access."""
 
 import asyncio
-from typing import Callable, Optional
+from typing import Callable, List, Optional, Tuple, Union
 
 from .emulatorinfo import EmulatorInfo, connect_to_emulator, load_emulator_configs
 from .process import ProcessMemory
+
+
+class RequestFailedError(Exception):
+    """Raised when a memory read or write operation fails.
+
+    Mirrors ``worlds._bizhawk.RequestFailedError`` so that game clients written
+    against the BizHawk API can catch this exception unchanged when running
+    against EmuLoader.
+    """
 
 try:
     from CommonClient import logger
@@ -143,6 +152,154 @@ class EmuLoaderClient:
         if self._check_not_connected():
             return
         self.emulator_info.write_bytestring(address, data)  # pyright: ignore[reportOptionalMemberAccess]
+
+    # ---------------------------------------------------------------------------
+    # BizHawk-compatible async batch API
+    # ---------------------------------------------------------------------------
+    # These methods mirror the ``worlds._bizhawk`` module-level functions so that
+    # game clients originally written for BizHawk can swap ``ctx.bizhawk_ctx`` for
+    # an ``EmuLoaderClient`` instance with minimal changes.
+    #
+    # Read tuple:  (address: int, length: int, domain: str)
+    # Write tuple: (address: int, data: bytes | bytearray, domain: str)
+    # Guard tuple: (address: int, expected: bytes | bytearray, domain: str)
+    #
+    # ``domain`` is accepted for API compatibility but ignored -- all accesses go
+    # through the connected emulator's RDRAM.
+    # ---------------------------------------------------------------------------
+
+    async def read(
+        self,
+        reads: List[Tuple[int, int, str]],
+    ) -> List[bytes]:
+        """Read multiple memory regions in a single call.
+
+        Args:
+            reads: A list of ``(address, length, domain)`` tuples.
+
+        Returns:
+            A list of ``bytes`` objects, one per entry in *reads*, in logical
+            address order.
+
+        Raises:
+            RequestFailedError: if the emulator is not connected or a read fails.
+        """
+        if not self.is_connected():
+            raise RequestFailedError("Not connected to emulator.")
+        loop = asyncio.get_event_loop()
+        emu = self.emulator_info  # pyright: ignore[reportOptionalMemberAccess]
+
+        def _do() -> List[bytes]:
+            try:
+                return [emu.read_bytes_array(addr, length) for addr, length, _ in reads]
+            except Exception as exc:
+                raise RequestFailedError(str(exc)) from exc
+
+        return await loop.run_in_executor(None, _do)
+
+    async def write(
+        self,
+        writes: List[Tuple[int, Union[bytes, bytearray], str]],
+    ) -> None:
+        """Write multiple memory regions in a single call.
+
+        Args:
+            writes: A list of ``(address, data, domain)`` tuples.
+
+        Raises:
+            RequestFailedError: if the emulator is not connected or a write fails.
+        """
+        if not self.is_connected():
+            raise RequestFailedError("Not connected to emulator.")
+        loop = asyncio.get_event_loop()
+        emu = self.emulator_info  # pyright: ignore[reportOptionalMemberAccess]
+
+        def _do() -> None:
+            try:
+                for addr, data, _ in writes:
+                    emu.write_bytes_array(addr, bytes(data))
+            except Exception as exc:
+                raise RequestFailedError(str(exc)) from exc
+
+        await loop.run_in_executor(None, _do)
+
+    async def guarded_read(
+        self,
+        reads: List[Tuple[int, int, str]],
+        guards: List[Tuple[int, Union[bytes, bytearray], str]],
+    ) -> Optional[List[bytes]]:
+        """Read multiple memory regions only if all guard conditions are satisfied.
+
+        A guard is a ``(address, expected_bytes, domain)`` tuple.  Each guard
+        address is read and compared to its expected value; if any guard fails the
+        method returns ``None`` without performing the reads (mirrors
+        ``bizhawk.guarded_read`` returning ``None`` when the game is not in the
+        expected state).
+
+        Args:
+            reads:  List of ``(address, length, domain)`` tuples.
+            guards: List of ``(address, expected_bytes, domain)`` tuples.
+
+        Returns:
+            A list of ``bytes`` objects (one per *reads* entry) on success, or
+            ``None`` if any guard fails.
+
+        Raises:
+            RequestFailedError: if the emulator is not connected or a read fails.
+        """
+        if not self.is_connected():
+            raise RequestFailedError("Not connected to emulator.")
+        loop = asyncio.get_event_loop()
+        emu = self.emulator_info  # pyright: ignore[reportOptionalMemberAccess]
+
+        def _do() -> Optional[List[bytes]]:
+            try:
+                for guard_addr, expected, _ in guards:
+                    actual = emu.read_bytes_array(guard_addr, len(expected))
+                    if actual != bytes(expected):
+                        return None
+                return [emu.read_bytes_array(addr, length) for addr, length, _ in reads]
+            except Exception as exc:
+                raise RequestFailedError(str(exc)) from exc
+
+        return await loop.run_in_executor(None, _do)
+
+    async def guarded_write(
+        self,
+        writes: List[Tuple[int, Union[bytes, bytearray], str]],
+        guards: List[Tuple[int, Union[bytes, bytearray], str]],
+    ) -> bool:
+        """Write multiple memory regions only if all guard conditions are satisfied.
+
+        Args:
+            writes: List of ``(address, data, domain)`` tuples.
+            guards: List of ``(address, expected_bytes, domain)`` tuples.
+
+        Returns:
+            ``True`` if all guards passed and writes were performed, ``False`` if
+            any guard failed (no writes are made in that case).
+
+        Raises:
+            RequestFailedError: if the emulator is not connected or a read/write fails.
+        """
+        if not self.is_connected():
+            raise RequestFailedError("Not connected to emulator.")
+        loop = asyncio.get_event_loop()
+        emu = self.emulator_info  # pyright: ignore[reportOptionalMemberAccess]
+
+        def _do() -> bool:
+            try:
+                for guard_addr, expected, _ in guards:
+                    actual = emu.read_bytes_array(guard_addr, len(expected))
+                    if actual != bytes(expected):
+                        return False
+                for addr, data, _ in writes:
+                    emu.write_bytes_array(addr, bytes(data))
+                return True
+            except Exception as exc:
+                raise RequestFailedError(str(exc)) from exc
+
+        return await loop.run_in_executor(None, _do)
 
     async def wait_for_emulator(self, validate: Optional[Callable[["EmuLoaderClient"], bool]] = None):
         """Wait for emulator to connect and optionally validate a condition (e.g. ROM loaded).

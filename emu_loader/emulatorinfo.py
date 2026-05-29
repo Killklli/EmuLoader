@@ -79,6 +79,8 @@ class EmulatorInfo:
         signature_offset: int = 0x759290,
         signature_value: int = 0x52414D42,
         validation_func: Optional[Callable[["ProcessMemory", int], bool]] = None,
+        address_mask: int = 0x80000000,
+        byte_swap: bool = True,
     ):
         """Initialize with given parameters."""
         self.id = id
@@ -97,6 +99,8 @@ class EmulatorInfo:
         self.signature_offset = signature_offset
         self.signature_value = signature_value
         self.validation_func = validation_func
+        self.address_mask = address_mask
+        self.byte_swap = byte_swap
         self.connected_process: Optional[ProcessMemory] = None
         self.connected_offset: Optional[int] = None
         self.connection_error: Optional[str] = None
@@ -247,25 +251,26 @@ class EmulatorInfo:
         if self.connected_process is None or self.connected_offset is None:
             self.runtime_error = "Not connected to a process, exiting"
             raise Exception(self.runtime_error)
-        if address & 0x80000000:
-            address &= 0x7FFFFFFF
+        if self.address_mask and (address & self.address_mask):
+            address &= ~self.address_mask
 
-        if size == 1:
-            remainder = address % 4
-            if remainder == 0:
-                address += 3
-            elif remainder == 1:
-                address += 1
-            elif remainder == 2:
-                address -= 1
-            elif remainder == 3:
-                address -= 3
-        elif size == 2:
-            remainder = address % 4
-            if remainder in (2, 3):
-                address -= 2
-            elif remainder in (0, 1):
-                address += 2
+        if self.byte_swap:
+            if size == 1:
+                remainder = address % 4
+                if remainder == 0:
+                    address += 3
+                elif remainder == 1:
+                    address += 1
+                elif remainder == 2:
+                    address -= 1
+                elif remainder == 3:
+                    address -= 3
+            elif size == 2:
+                remainder = address % 4
+                if remainder in (2, 3):
+                    address -= 2
+                elif remainder in (0, 1):
+                    address += 2
 
         mem_address = self.connected_offset + address
         data = self.connected_process.read_bytes(mem_address, size)
@@ -276,25 +281,26 @@ class EmulatorInfo:
         if self.connected_process is None or self.connected_offset is None:
             self.runtime_error = "Not connected to a process, exiting"
             raise Exception(self.runtime_error)
-        if address & 0x80000000:
-            address &= 0x7FFFFFFF
+        if self.address_mask and (address & self.address_mask):
+            address &= ~self.address_mask
 
-        if size == 1:
-            remainder = address % 4
-            if remainder == 0:
-                address += 3
-            elif remainder == 1:
-                address += 1
-            elif remainder == 2:
-                address -= 1
-            elif remainder == 3:
-                address -= 3
-        elif size == 2:
-            remainder = address % 4
-            if remainder in (2, 3):
-                address -= 2
-            elif remainder in (0, 1):
-                address += 2
+        if self.byte_swap:
+            if size == 1:
+                remainder = address % 4
+                if remainder == 0:
+                    address += 3
+                elif remainder == 1:
+                    address += 1
+                elif remainder == 2:
+                    address -= 1
+                elif remainder == 3:
+                    address -= 3
+            elif size == 2:
+                remainder = address % 4
+                if remainder in (2, 3):
+                    address -= 2
+                elif remainder in (0, 1):
+                    address += 2
 
         mem_address = self.connected_offset + address
         data = value.to_bytes(size, byteorder="little")
@@ -334,6 +340,26 @@ class EmulatorInfo:
             result += chr(byte_val)
         return result
 
+    def read_bytes_array(self, address: int, length: int) -> bytes:
+        """Read `length` bytes starting at logical `address`, applying per-byte N64 byte-swapping.
+
+        Returns a `bytes` object in logical address order, compatible with the BizHawk
+        batch-read API where each read entry is ``(address, length, domain)``.
+        """
+        result = bytearray(length)
+        for i in range(length):
+            result[i] = self.readBytes(address + i, 1)
+        return bytes(result)
+
+    def write_bytes_array(self, address: int, data: bytes):
+        """Write `data` bytes to memory starting at logical `address`, applying per-byte N64 byte-swapping.
+
+        Accepts any ``bytes``-like object, compatible with the BizHawk batch-write API
+        where each write entry is ``(address, data, domain)``.
+        """
+        for i, byte_val in enumerate(data):
+            self.writeBytes(address + i, 1, byte_val)
+
     def write_bytestring(self, address: int, data: str):
         """Write a bytestring to memory."""
         sanitized_data = sanitize_and_trim(data)
@@ -361,6 +387,8 @@ def _parse_emulator_configs(data: List[Dict[str, Any]]) -> Dict[str, EmulatorInf
             linux_dll_name=entry.get("linux_dll_name"),
             scan_memory_for_signature=entry.get("scan_memory_for_signature", False),
             signature_alignment=int(entry.get("signature_alignment", "0x0"), 16),
+            address_mask=int(entry.get("address_mask", "0x80000000"), 16),
+            byte_swap=entry.get("byte_swap", True),
         )
     return configs
 
