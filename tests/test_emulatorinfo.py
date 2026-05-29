@@ -23,7 +23,6 @@ def _make_emu(**kwargs) -> EmulatorInfo:
         additional_lookup=False,
         lower_offset_range=0,
         upper_offset_range=0x100,
-        validation_func=lambda pm, offset: True,
     )
     defaults.update(kwargs)
     return EmulatorInfo(**defaults)

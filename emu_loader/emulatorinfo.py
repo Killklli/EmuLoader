@@ -5,7 +5,7 @@ import os
 import ssl
 import urllib.request
 from importlib import resources
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .process import IS_LINUX, IS_MACOS, ProcessMemory, get_running_processes
 from .retroarch_udp import RetroArchNetworkInfo
@@ -76,7 +76,8 @@ class EmulatorInfo:
         linux_dll_name: Optional[str] = None,
         scan_memory_for_signature: bool = False,
         signature_alignment: int = 0,
-        validation_func: Optional[Callable[["ProcessMemory", int], bool]] = None,
+        signature_offset: int = 0x759290,
+        signature_value: int = 0x52414D42,
     ):
         """Initialize with given parameters."""
         self.id = id
@@ -92,7 +93,8 @@ class EmulatorInfo:
         self.extra_offset = extra_offset
         self.scan_memory_for_signature = scan_memory_for_signature
         self.signature_alignment = signature_alignment
-        self.validation_func = validation_func
+        self.signature_offset = signature_offset
+        self.signature_value = signature_value
         self.connected_process: Optional[ProcessMemory] = None
         self.connected_offset: Optional[int] = None
         self.connection_error: Optional[str] = None
@@ -142,25 +144,40 @@ class EmulatorInfo:
 
     def raiseError(self, msg: str):
         """Raise an error and log it."""
-        print(msg)
+        logger.debug(msg)
         self.connection_error = msg
 
     def attach_to_emulator(self) -> Optional[Tuple[ProcessMemory, int]]:
         """Grab memory addresses of where emulated RDRAM is."""
         self.connected_process = None
         self.connected_offset = None
-
-        target_proc = None
+        # Find processes by name
         processes = get_running_processes()
-
-        for proc in processes:
-            if proc["name"] and proc["name"].lower().startswith(self.process_name.lower()):
-                target_proc = proc
-                break
-        if not target_proc:
+        matching_procs = [p for p in processes if p["name"] and p["name"].lower().startswith(self.process_name.lower())]
+        if not matching_procs:
             self.raiseError(f"Could not find process '{self.process_name}'")
             return None
 
+        if self.scan_memory_for_signature:
+            # Multiple processes may match (e.g. gopher64 launches a child for the actual emu).
+            last_error: Optional[str] = None
+            for proc in matching_procs:
+                try:
+                    pm = ProcessMemory(self.process_name, pid=proc["pid"])
+                except Exception as e:
+                    last_error = f"Failed to attach to process pid {proc['pid']}: {e}"
+                    continue
+                rdram_base = self._scan_for_signature(pm)
+                if rdram_base is None:
+                    pm.close()
+                    continue
+                self.connected_process = pm
+                self.connected_offset = rdram_base
+                return (pm, rdram_base)
+            self.raiseError(last_error or f"Could not locate signature in any {self.readable_emulator_name} memory region")
+            return None
+
+        target_proc = matching_procs[0]
         try:
             pm = ProcessMemory(target_proc["name"])
         except Exception as e:
@@ -178,7 +195,7 @@ class EmulatorInfo:
                 if address_dll != 0:
                     break
 
-            if address_dll == 0 and self.id == "BizHawk":
+            if address_dll == 0 and self.id == Emulators.BizHawk:
                 address_dll = 2024407040  # fallback guess
             elif address_dll == 0:
                 searched_names = ", ".join(possible_names)
@@ -198,17 +215,18 @@ class EmulatorInfo:
             else:
                 read_address = address_dll + pot_off
 
-            candidate_offset = read_address + self.extra_offset
+            addr = read_address + self.extra_offset + self.signature_offset
 
             try:
-                is_valid = self.validation_func(pm, candidate_offset)
-                has_seen_nonzero = True
+                test_value = pm.read_int(addr)
             except Exception:
                 continue
-            if is_valid:
+            if test_value != 0:
+                has_seen_nonzero = True
+            if test_value == self.signature_value:
                 self.connected_process = pm
-                self.connected_offset = candidate_offset
-                return (pm, candidate_offset)
+                self.connected_offset = read_address + self.extra_offset
+                return (pm, read_address + self.extra_offset)
 
         if not has_seen_nonzero:
             self.raiseError(f"Could not read any data from {self.readable_emulator_name}")
