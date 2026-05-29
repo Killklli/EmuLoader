@@ -1,7 +1,7 @@
 """EmuLoaderClient - high-level drop-in client for emulator memory access."""
 
 import asyncio
-from typing import Optional
+from typing import Callable, Optional
 
 from .emulatorinfo import EmulatorInfo, connect_to_emulator, load_emulator_configs
 
