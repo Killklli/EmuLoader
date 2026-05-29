@@ -4,6 +4,7 @@ import asyncio
 from typing import Callable, Optional
 
 from .emulatorinfo import EmulatorInfo, connect_to_emulator, load_emulator_configs
+from .process import ProcessMemory
 
 try:
     from CommonClient import logger
@@ -16,13 +17,29 @@ except ImportError:
 class EmuLoaderClient:
     """Drop-in replacement client for PJ64Client using direct memory access."""
 
-    def __init__(self, signature_offset: int, signature_value: int, pull_from_web: bool = True):
+    def __init__(
+        self,
+        signature_offset: Optional[int] = None,
+        signature_value: Optional[int] = None,
+        validation_func: Optional[Callable[["ProcessMemory", int], bool]] = None,
+        pull_from_web: bool = True,
+    ):
         """Initialize the EmuLoaderClient and connect to an available emulator.
+
+        A game must supply EITHER a (signature_offset, signature_value) pair OR a
+        validation_func -- the client itself holds no game-specific defaults.
 
         Args:
             signature_offset: The offset from RDRAM base used to locate the signature value.
+                              When given (with signature_value), the candidate RDRAM base is
+                              confirmed by a fixed-value equality check.
             signature_value: The expected 32-bit value at signature_offset that confirms
                              the correct RDRAM base was found.
+            validation_func: Optional callable that receives (ProcessMemory, candidate_offset)
+                             and returns True if the candidate offset is the correct RDRAM base.
+                             When provided, it replaces the (signature_offset, signature_value)
+                             equality check -- use it for games whose RDRAM marker is a pointer
+                             chain rather than a fixed constant (e.g. Banjo-Tooie).
             pull_from_web: If True, fetch emulator configs from the web before falling
                            back to the local bundled file. Defaults to True.
         """
@@ -32,8 +49,11 @@ class EmuLoaderClient:
         self._not_connected_logged = False
         self.configs = load_emulator_configs(pull_from_web=pull_from_web)
         for emu in self.configs.values():
-            emu.signature_offset = signature_offset
-            emu.signature_value = signature_value
+            if signature_offset is not None:
+                emu.signature_offset = signature_offset
+            if signature_value is not None:
+                emu.signature_value = signature_value
+            emu.validation_func = validation_func
         self.connect()
 
     def connect(self) -> bool:

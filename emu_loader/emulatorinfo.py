@@ -5,7 +5,7 @@ import os
 import ssl
 import urllib.request
 from importlib import resources
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .process import IS_LINUX, IS_MACOS, ProcessMemory, get_running_processes
 from .retroarch_udp import RetroArchNetworkInfo
@@ -78,6 +78,7 @@ class EmulatorInfo:
         signature_alignment: int = 0,
         signature_offset: int = 0x759290,
         signature_value: int = 0x52414D42,
+        validation_func: Optional[Callable[["ProcessMemory", int], bool]] = None,
     ):
         """Initialize with given parameters."""
         self.id = id
@@ -95,6 +96,7 @@ class EmulatorInfo:
         self.signature_alignment = signature_alignment
         self.signature_offset = signature_offset
         self.signature_value = signature_value
+        self.validation_func = validation_func
         self.connected_process: Optional[ProcessMemory] = None
         self.connected_offset: Optional[int] = None
         self.connection_error: Optional[str] = None
@@ -195,7 +197,7 @@ class EmulatorInfo:
                 if address_dll != 0:
                     break
 
-            if address_dll == 0 and self.id == Emulators.BizHawk:
+            if address_dll == 0 and self.id == "BizHawk":
                 address_dll = 2024407040  # fallback guess
             elif address_dll == 0:
                 searched_names = ", ".join(possible_names)
@@ -215,18 +217,25 @@ class EmulatorInfo:
             else:
                 read_address = address_dll + pot_off
 
-            addr = read_address + self.extra_offset + self.signature_offset
-
-            try:
-                test_value = pm.read_int(addr)
-            except Exception:
-                continue
-            if test_value != 0:
-                has_seen_nonzero = True
-            if test_value == self.signature_value:
+            candidate_offset = read_address + self.extra_offset
+            if self.validation_func is not None:
+                try:
+                    is_valid = self.validation_func(pm, candidate_offset)
+                    has_seen_nonzero = True
+                except Exception:
+                    continue
+            else:
+                try:
+                    test_value = pm.read_int(candidate_offset + self.signature_offset)
+                except Exception:
+                    continue
+                if test_value != 0:
+                    has_seen_nonzero = True
+                is_valid = test_value == self.signature_value
+            if is_valid:
                 self.connected_process = pm
-                self.connected_offset = read_address + self.extra_offset
-                return (pm, read_address + self.extra_offset)
+                self.connected_offset = candidate_offset
+                return (pm, candidate_offset)
 
         if not has_seen_nonzero:
             self.raiseError(f"Could not read any data from {self.readable_emulator_name}")
