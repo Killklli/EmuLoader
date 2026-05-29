@@ -4,51 +4,9 @@ Cross-platform emulator memory access library for N64 emulators. Supports Window
 
 > **Note on emulator config loading:** The emulator definitions bundled with this package come from [`emu_loader/emulators.json`](emu_loader/emulators.json) in this repository. However, when `pull_from_web=True` is passed by the implementor (which is the default), EmuLoader will first attempt to fetch the latest config directly from [https://killklli.github.io/EmuLoader/emulators.json](https://killklli.github.io/EmuLoader/emulators.json) — which always reflects the `emulators.json` on the `main` branch. This means emulator support can be updated or corrected without requiring end users to upgrade the package. If the remote fetch fails, EmuLoader falls back to the bundled local copy automatically. To opt out of remote fetching entirely, pass `pull_from_web=False` when connecting.
 
-## Installation
+## Linux Notes
 
-```bash
-pip install emu-loader
-```
-
-Install a specific tagged release directly from GitHub:
-
-```bash
-pip install git+https://github.com/Killklli/EmuLoader.git@v1.0.0
-```
-
-Or always track the latest commit on `main`:
-
-```bash
-pip install git+https://github.com/Killklli/EmuLoader.git@main
-```
-
-Or install from a local clone:
-
-```bash
-pip install .
-```
-
-### Archipelago World Installation
-
-If you are building an [Archipelago](https://github.com/ArchipelagoMW/Archipelago) world that depends on EmuLoader, add the following line to your `worlds/<your_world>/requirements.txt`:
-
-```
-emu-loader @ git+https://github.com/Killklli/EmuLoader@v0.1.2#0.1.2
-```
-
-Archipelago's `ModuleUpdate.py` uses a custom `name @ git+url@<ref>#<version>` syntax to pin a specific release while still allowing version checking via `pkg_resources`. The `#<version>` suffix is **not** a standard URL fragment — it is parsed by Archipelago to derive `name==version` for requirement validation. The `@<ref>` portion is any valid git ref passed to pip (tag, branch, or full commit SHA).
-
-To update the pin to a newer release, replace the tag and version accordingly:
-
-```
-emu-loader @ git+https://github.com/Killklli/EmuLoader@v<version>#<version>
-```
-
-If you need to pin to a specific commit instead of a tag, you can use the full commit SHA:
-
-```
-emu-loader @ git+https://github.com/Killklli/EmuLoader@<full-commit-sha>#<version>
-```
+On Linux, memory access uses `/proc/<pid>/mem`. If ptrace restrictions are enabled (`/proc/sys/kernel/yama/ptrace_scope` > 0), the library will attempt to relax them automatically using `sudo`. You may be prompted for your password.
 
 ## Supported Emulators
 
@@ -109,6 +67,28 @@ New emulators can be added by appending an entry to `emu_loader/emulators.json`.
 ```
 
 After adding the entry, the new `id` can be passed anywhere EmuLoader accepts an emulator key.
+
+### Archipelago World Installation
+
+If you are building an [Archipelago](https://github.com/ArchipelagoMW/Archipelago) world that depends on EmuLoader, add the following line to your `worlds/<your_world>/requirements.txt`:
+
+```
+emu-loader @ git+https://github.com/Killklli/EmuLoader@v0.1.2#0.1.2
+```
+
+Archipelago's `ModuleUpdate.py` uses a custom `name @ git+url@<ref>#<version>` syntax to pin a specific release while still allowing version checking via `pkg_resources`. The `#<version>` suffix is **not** a standard URL fragment — it is parsed by Archipelago to derive `name==version` for requirement validation. The `@<ref>` portion is any valid git ref passed to pip (tag, branch, or full commit SHA).
+
+To update the pin to a newer release, replace the tag and version accordingly:
+
+```
+emu-loader @ git+https://github.com/Killklli/EmuLoader@v<version>#<version>
+```
+
+If you need to pin to a specific commit instead of a tag, you can use the full commit SHA:
+
+```
+emu-loader @ git+https://github.com/Killklli/EmuLoader@<full-commit-sha>#<version>
+```
 
 ## Usage
 
@@ -247,6 +227,26 @@ All addresses should be N64 virtual addresses (e.g. `0x80xxxxxx`). The library s
 | `read_bytestring(address, length)` | Read a string from memory |
 | `write_bytestring(address, data)` | Write a sanitized string to memory |
 
-## Linux Notes
+## Local Installation
 
-On Linux, memory access uses `/proc/<pid>/mem`. If ptrace restrictions are enabled (`/proc/sys/kernel/yama/ptrace_scope` > 0), the library will attempt to relax them automatically using `sudo`. You may be prompted for your password.
+```bash
+pip install emu-loader
+```
+
+Install a specific tagged release directly from GitHub:
+
+```bash
+pip install git+https://github.com/Killklli/EmuLoader.git@v1.0.0
+```
+
+Or always track the latest commit on `main`:
+
+```bash
+pip install git+https://github.com/Killklli/EmuLoader.git@main
+```
+
+Or install from a local clone:
+
+```bash
+pip install .
+```
