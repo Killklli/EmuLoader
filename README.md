@@ -1,6 +1,6 @@
 # EmuLoader
 
-Cross-platform emulator memory access library for N64 emulators. Supports Windows and Linux, with built-in detection for common emulators including Project64, BizHawk, Rosalie's Mupen GUI, simple64, Parallel Launcher, RetroArch, Gopher64, and ares.
+Cross-platform emulator memory access library for N64 emulators. Supports Windows, Linux, and macOS (via RetroArch UDP), with built-in detection for common emulators including Project64, BizHawk, Rosalie's Mupen GUI, simple64, Parallel Launcher, RetroArch, Gopher64, and ares.
 
 > **Note on emulator config loading:** The emulator definitions bundled with this package come from [`emu_loader/emulators.json`](emu_loader/emulators.json) in this repository. However, when `pull_from_web=True` is passed by the implementor (which is the default), EmuLoader will first attempt to fetch the latest config directly from [https://killklli.github.io/EmuLoader/emulators.json](https://killklli.github.io/EmuLoader/emulators.json) — which always reflects the `emulators.json` on the `main` branch. This means emulator support can be updated or corrected without requiring end users to upgrade the package. If the remote fetch fails, EmuLoader falls back to the bundled local copy automatically. To opt out of remote fetching entirely, pass `pull_from_web=False` when connecting.
 
@@ -52,21 +52,23 @@ emu-loader @ git+https://github.com/Killklli/EmuLoader@<full-commit-sha>#<versio
 
 ## Supported Emulators
 
-| Emulator | Key |
-|---|---|
-| Project64 | `"Project64"` |
-| Project64 4.0+ | `"Project64_v4"` |
-| BizHawk | `"BizHawk"` |
-| Rosalie's Mupen GUI | `"RMG"` |
-| Rosalie's Mupen GUI (Flatpak) | `"RMG_Flatpak"` |
-| simple64 | `"Simple64"` |
-| Parallel Launcher | `"ParallelLauncher"` |
-| Parallel Launcher 9.0.3+ | `"ParallelLauncher903"` |
-| RetroArch (mupen64plus_next) | `"RetroArch"` |
-| Gopher64 | `"Gopher64"` |
-| ares | `"Ares"` |
+| Emulator | Key | Windows | Linux | macOS |
+|---|---|:---:|:---:|:---:|
+| Project64 | `"Project64"` | ✅ | ❌ | ❌ |
+| Project64 4.0+ | `"Project64_v4"` | ✅ | ❌ | ❌ |
+| Project64 (scan) | `"Project64Scan"` | ✅ | ❌ | ❌ |
+| Project64 3.0.1 (EM) | `"Project64_EM"` | ✅ | ❌ | ❌ |
+| BizHawk | `"BizHawk"` | ✅ | ✅ | ❌ |
+| Rosalie's Mupen GUI | `"RMG"` | ✅ | ✅ | ❌ |
+| Rosalie's Mupen GUI (Flatpak) | `"RMG_Flatpak"` | ❌ | ✅ | ❌ |
+| simple64 | `"Simple64"` | ✅ | ✅ | ❌ |
+| Parallel Launcher | `"ParallelLauncher"` | ✅ | ✅ | ❌ |
+| Parallel Launcher 9.0.3+ | `"ParallelLauncher903"` | ✅ | ✅ | ❌ |
+| RetroArch (mupen64plus_next) | `"RetroArch"` | ✅ | ✅ | ✅ (UDP) |
+| Gopher64 | `"Gopher64"` | ✅ | ✅ | ❌ |
+| ares | `"Ares"` | ✅ | ✅ | ❌ |
 
-Emulator configs are loaded from `emulators.json` (or fetched from the web at runtime) and are no longer tied to a hardcoded enum — new emulators can be added simply by updating the JSON.
+> **macOS note:** Direct process-memory access is not supported on macOS. RetroArch with Network Commands (UDP) enabled is the only supported connection method on that platform.
 
 ## Adding Emulators
 
