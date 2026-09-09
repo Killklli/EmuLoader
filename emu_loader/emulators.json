@@ -63,7 +63,7 @@
     "upper_offset_range": "0x0",
     "range_step": "0x10",
     "extra_offset": "0x0",
-    "scan_memory_for_signature": true
+    "scan_memory_for_signature": true,
     "signature_alignment": "0x1000"
   },
   {
