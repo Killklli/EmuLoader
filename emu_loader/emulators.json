@@ -52,6 +52,21 @@
     "extra_offset": "0x0"
   },
   {
+    "id": "RMG_Scan",
+    "readable_emulator_name": "Rosalie's Mupen GUI (system install)",
+    "process_name": "rmg",
+    "find_dll": false,
+    "dll_name": null,
+    "linux_dll_name": null,
+    "additional_lookup": false,
+    "lower_offset_range": "0x0",
+    "upper_offset_range": "0x0",
+    "range_step": "0x10",
+    "extra_offset": "0x0",
+    "scan_memory_for_signature": true,
+    "signature_alignment": "0x1000"
+  },
+  {
     "id": "Simple64",
     "readable_emulator_name": "simple64",
     "process_name": "simple64-gui",
