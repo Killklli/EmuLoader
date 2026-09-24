@@ -5,6 +5,13 @@ from .emulatorinfo import EmulatorInfo, attachWrapper, connect_to_emulator, load
 from .retroarch_udp import RetroArchNetworkInfo
 from .process import ProcessMemory
 from .ptrace import check_and_fix_ptrace_scope
+from .n64_registry import (
+    N64ValidationInfo,
+    N64WorldMixin,
+    ValidationFunc,
+    build_offset_value_validator,
+    discover_n64_worlds,
+)
 
 __all__ = [
     "EmuLoaderClient",
@@ -15,4 +22,9 @@ __all__ = [
     "load_emulator_configs",
     "RetroArchNetworkInfo",
     "check_and_fix_ptrace_scope",
+    "N64ValidationInfo",
+    "N64WorldMixin",
+    "ValidationFunc",
+    "build_offset_value_validator",
+    "discover_n64_worlds",
 ]
